@@ -1,5 +1,5 @@
 parameter,min,max,default,Col,Col FRI,vin 3-1,vin3-4 FRI,fve-3,gi-2
-Vsat,0,1.00E+06,0.96,Col,Col,vin3,vin3,Col,Col
+Vsat,0,1.00E+03,0.96,Col,Col,vin3,vin3,Col,Col
 D_LD,0,1,1,Col,Col,Col,Col,Col,gi
 F_b,0,1,0.5,Col,FRI,FRI,FRI,fve,Col
 T_base,-10,10,3,,,,,,

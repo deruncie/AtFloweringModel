@@ -38,6 +38,10 @@ public:
   NumericVector get_Vern() {return wrap(Vern);}
   NumericVector get_FT_signal() {return wrap(FT_signal);}
   NumericVector get_Total_signal() {return wrap(Total_signal);}
+  double TT_fun(NumericVector,NumericVector);
+  double PTT_fun(double,double);
+  double Vern_fun(double,NumericVector,NumericVector);
+  double Signal_fun(double,double);
 protected:
   NumericVector params;
   NumericMatrix param_ranges,design_matrix_genotype;
@@ -54,10 +58,6 @@ protected:
   double penalty;
   IntegerVector observed_bolting_days;
   Environ env;
-  double TT_fun(NumericVector,NumericVector);
-  double PTT_fun(double,double);
-  double Vern_fun(double,NumericVector,NumericVector);
-  double Signal_fun(double,double);
   void check_plant();
   std::vector<double> TT; // thermal time history by day
   std::vector<double> PTT; // PTU time history by day
@@ -324,6 +324,10 @@ RCPP_MODULE(class_Plant) {
     .method("get_Total_signal",&Plant::get_Total_signal)
     .method("update_params",&Plant::update_params)
     .method("update_coefs",&Plant::update_coefs)
+    .method("TT_fun",&Plant::TT_fun)
+    .method("PTT_fun",&Plant::PTT_fun)
+    .method("Vern_fun",&Plant::Vern_fun)
+    .method("Signal_fun",&Plant::Signal_fun)
     .method("get_predicted_bolting_day",&Plant::get_predicted_bolting_day)
     .method("update_Signal_threshold",&Plant::update_Signal_threshold)
     .method("get_predicted_bolting_PTT",&Plant::get_predicted_bolting_PTT)

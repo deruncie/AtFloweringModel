@@ -3,7 +3,7 @@ library(AtFloweringModel)
 source('loadData.R')
 
 genotypes = c('Col','Col FRI','vin 3-1', 'fve-3','gi-2')#,'vin3-4 FRI','tfl2-6')
-plantings = fit_plantings[c(1:8,9:10)] #,11:21
+plantings = fit_plantings[c(1:8,9:10,11:21)]
 plants = unlist(c(sapply(genotypes,function(gen) paste(gen,plantings,sep='::'))))
 fit_data_individuals = full_data_individuals[full_data_individuals$plant %in% plants,]
 
@@ -93,6 +93,9 @@ for(genotype in genotypes){
     Plant_list[[id]] = plant
   }
 }
+
+Validation_Plant_list = Plant_list[plant_index$Treatment %in% fit_plantings[11:21]]
+Plant_list = Plant_list[plant_index$Treatment %in% fit_plantings[1:10]]
 
 
 # plant$get_params()

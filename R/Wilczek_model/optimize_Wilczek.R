@@ -31,3 +31,20 @@ init = c(Signal_threshold = 2.3)
 f = sprintf('function(x) obj_fun(c(%s = x),Plant_list = Plant_list)',names(init))
 res = optimise(f = eval(parse(text = f)),interval = pmin(param_range_list[[names(init)]],10))
 res
+
+obs = do.call(rbind,lapply(Plant_list,function(plant) {
+  obs = (plant$get_observed_bolting_PTTs())#^(-0.05)
+  # return(data.frame(Genotype = plant$gen, Treatment = plant$environ,Mean = mean(obs), SD = sd(obs)))
+  return(data.frame(Genotype = plant$gen, Treatment = plant$environ,obs = obs))
+}))
+# with(obs,cor(Mean,SD))
+# ggplot(obs,aes(x=Mean,y=SD)) + geom_point(aes(color=Treatment))
+library(car)
+lm1 = lm(obs~Genotype:Treatment,obs)
+res = powerTransform(lm1)
+coef(res)
+
+
+par(mfrow=c(1,2))
+plot(lm1,which=c(1,2))
+par(mfrow=c(1,1))
