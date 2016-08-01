@@ -1,0 +1,8 @@
+parameter,value
+Col::Vsat,0.96
+vin3::Vsat,1.00E+06
+Col::F_b,0.402
+FRI::F_b,0.263
+fve::F_b,0.269
+Col::D_LD,1
+gi::D_LD,0
