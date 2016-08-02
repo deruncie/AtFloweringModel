@@ -10,15 +10,7 @@ public:
   Plant(String id_, String gen_, String environ_,NumericVector params_, NumericMatrix env_):
           id(id_),gen(gen_),environ(environ_),
           age(0),transition_day(0),bolting_day(0),penalty(0) {params = clone(params_);env = clone(env_); }
-  // Plant(String id_, String gen_, String environ_,
-  //       NumericVector params_, NumericMatrix param_ranges_, NumericMatrix design_matrix_genotype_,List param_transformation_,
-  //       NumericMatrix env_):
-  //   id(id_),gen(gen_),environ(environ_),
-  //   params(params_), param_ranges(param_ranges_),design_matrix_genotype(design_matrix_genotype_),
-  //   // param_transformation(param_transformation_),
-  //   env(env_), age(0),transition_day(0),bolting_day(0),penalty(0) {}//{param_transformation = param_transformation_;}
   String id, gen, environ;
-  NumericVector get_params() {return params;}
   void update_params(NumericVector);  // directly change parameters
   void set_genotype_info(NumericMatrix,NumericMatrix,List);
   NumericVector update_coefs(NumericVector);
@@ -30,6 +22,7 @@ public:
   void develop_n(int);
   int predict_flowering();
   int predict_bolting();
+  NumericVector get_params() {return params;}
   int get_predicted_bolting_day();
   double get_predicted_bolting_PTT();
   NumericVector get_observed_bolting_PTTs();
