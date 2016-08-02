@@ -57,8 +57,9 @@ protected:
   std::vector<double> Vern; // Vern time history by day
   std::vector<double> FT_signal; // FT history by day
   std::vector<double> Total_signal; // cumPTU history by day
+  std::vector<double> cumPTT; // cumPTU history by day
   NumericVector cumTT;
-  NumericVector cumPTT;
+  // NumericVector cumPTT;
 };
 
 void Plant::set_genotype_info(NumericMatrix param_ranges_,NumericMatrix design_matrix_genotype_,List param_transformations_){
@@ -125,7 +126,7 @@ void Plant::check_plant() {
   // PTT depends on TT. So if TT is reset, so is PTT
   if(TT.size() == 0) {
     PTT.clear();
-    cumPTT = NumericVector(0);
+    cumPTT.clear();
   }
 
   // FT depends on PTT and Vern
@@ -267,8 +268,9 @@ int Plant::predict_bolting(){
 }
 double Plant::get_predicted_bolting_PTT(){
   if(bolting_day == 0) predict_bolting();
-  if(cumPTT.length() < PTT.size()){
-    cumPTT = NumericVector(PTT.size());
+  if(cumPTT.size() < PTT.size()){
+    cumPTT.clear();
+    cumPTT.resize(PTT.size());
     std::partial_sum(PTT.begin(),PTT.end(),cumPTT.begin());
   }
   if(bolting_day <= env.numDays()) return cumPTT[bolting_day-1];
@@ -282,13 +284,14 @@ NumericVector Plant::get_observed_bolting_PTTs(){
     develop_n(max(observed_bolting_days - age));
     // Rcout << age << ", " << observed_bolting_days << std::endl;
   }
-  if(cumPTT.length() < PTT.size()){
-    cumPTT = NumericVector(PTT.size());
+  if(cumPTT.size() < PTT.size()){
+    cumPTT.clear();
+    cumPTT.resize(PTT.size());
     std::partial_sum(PTT.begin(),PTT.end(),cumPTT.begin());
   }
   NumericVector PTT_out(observed_bolting_days.length());
   for(int i = 0; i < observed_bolting_days.length(); i++){
-    if(observed_bolting_days[i] <= cumPTT.length()){
+    if(observed_bolting_days[i] <= cumPTT.size()){
       PTT_out[i] = cumPTT[observed_bolting_days[i]-1];
     }
     else {
