@@ -50,7 +50,7 @@ for(genotype in genotypes){
     index = fit_data_individuals$Genotype == genotype & fit_data_individuals$Treatment == env
     if(sum(index) == 0) next
 
-    plant = new(Plant,id,genotype,env,base_params,as.matrix(environ_data[[env]]))
+    plant = new(Wilczek_Plant,id,genotype,env,base_params,as.matrix(environ_data[[env]]))
     plant$set_genotype_info(param_ranges,design_matrix_genotype,param_transformations)
     plant$update_coefs(init_coefs_genotypes)
     plant$add_bolting_days(fit_data_individuals$DTB[index])

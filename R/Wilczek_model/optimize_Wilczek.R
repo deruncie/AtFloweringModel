@@ -13,9 +13,10 @@ init['Signal_threshold'] = runif(1,0,3)
 
 res = optim(init,obj_fun,Plant_list = Plant_list,control = list(trace=9))
 res = optim(res$par,obj_fun,Plant_list = Plant_list,control = list(trace=9));res
+obj_fun(res$par,Plant_list)
 
 results = do.call(rbind,lapply(Plant_list,function(plant) {
-  plant$update_coefs(res$par)
+  # plant$update_coefs(res$par)
   pred = plant$get_predicted_bolting_PTT()
   obs = plant$get_observed_bolting_PTTs()
   return(data.frame(Genotype = plant$gen, Treatment = plant$environ,pred = pred,obs = mean(obs),sd = sd(obs),N = length(obs)))
