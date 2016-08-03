@@ -26,7 +26,7 @@ void Base_Plant::update_Signal_threshold(double thresh) {
   params["Signal_threshold"] = thresh;
   developmental_state = 0;
   bolting_day = 0;
-  transition_day=0;
+  transition_day = 0;
 }
 double Base_Plant::TT_fun(NumericVector temps, NumericVector dts){
   Rcout << "base_TT\n";
@@ -92,17 +92,20 @@ int Base_Plant::predict_bolting(){
 
   // check_plant();
 
-  while(age < env.numDays() & developmental_state < 2) develop_day();
+  while(age < env.numDays() && developmental_state < 2) develop_day();
   if(developmental_state == 2) return bolting_day;
 
+  // Rcout << "No bolting: " << bolting_day << " " << age << std::endl;
   // if no bolting by end of env:
   return env.numDays()+1;
 }
 
 double Base_Plant::get_predicted_bolting_PTT(){
+  // if(bolting_day > 0 && developmental_state ==0) Rcout << bolting_day << " " << developmental_state << " error " << age << " " << env.numDays()<< std::endl; //stop("bolting and not developmental state");//
   if(developmental_state < 2) predict_bolting();
-  if(developmental_state < 2) return cumPTT[bolting_day-1];
-  return cumPTT[bolting_day-2] + PTT.back();
+  if(developmental_state == 2) return cumPTT[bolting_day-1];
+  // Rcout << bolting_day << " past end " << cumPTT[bolting_day-2] << ", " << PTT.back() << std::endl;
+  return cumPTT.back() + PTT.back();
 }
 
 NumericVector Base_Plant::get_observed_bolting_PTTs(){

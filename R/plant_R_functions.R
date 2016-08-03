@@ -146,7 +146,11 @@ obj_fun = function(new_coefs,Plant_list){
   }))
   penalty = sum(sapply(Plant_list,function(plant) plant$get_penalty()))
   # return(weighted_CV(r$obs,r$pred,r$N) + penalty)
-  return(weighted_CV(1/r$obs,1/r$pred,r$N) + penalty)
+  out = weighted_CV(1/r$obs,1/r$pred,r$N) + penalty
+  if(is.na(out)) recover()
+  if(out == Inf) recover()
+  # print(c(out,new_coefs))
+  return(out)
 }
 
 # Update_params_plants = function(plants, new_param_list) {

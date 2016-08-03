@@ -19,6 +19,7 @@ public:
   void add_bolting_days(IntegerVector);
   void develop_n(int);
   NumericVector get_params() {return params;}
+  int get_developmental_state() {return developmental_state;}
   int predict_bolting();
   int get_predicted_bolting_day();
   double get_predicted_bolting_PTT();

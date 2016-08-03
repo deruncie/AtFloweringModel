@@ -27,7 +27,7 @@ ggplot(results,aes(x=obs,y=pred)) + geom_point(aes(color=Treatment,size=N)) + ge
 
 
 # to change a single paramter, and then re-optimize threshold:
-a=sapply(Plant_list,function(plant) plant$update_coefs(c(T_base = 1)))
+a=sapply(Plant_list,function(plant) plant$update_coefs(c(T_base = 3)))
 init = c(Signal_threshold = 2.3)
 f = sprintf('function(x) obj_fun(c(%s = x),Plant_list = Plant_list)',names(init))
 res = optimise(f = eval(parse(text = f)),interval = pmin(param_range_list[[names(init)]],10))

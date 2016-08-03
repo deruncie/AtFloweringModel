@@ -6,7 +6,7 @@ using namespace Rcpp;
 
 class Wilczek_Plant : public Base_Plant {
 public:
-  Wilczek_Plant(String id_, String gen_, String environ_,NumericVector params_, NumericMatrix env_): Base_Plant(id_,gen_,environ_,params_,env_),developmental_state(0) {}
+  Wilczek_Plant(String id_, String gen_, String environ_,NumericVector params_, NumericMatrix env_): Base_Plant(id_,gen_,environ_,params_,env_) {}
   void update_params(NumericVector);
   void develop_day();
   // int predict_bolting();
@@ -14,6 +14,7 @@ public:
   double TT_fun(NumericVector,NumericVector);
   double PTT_fun(double,double);
   double Signal_fun(double,double);
+  NumericVector get_cumPTT() {return(wrap(cumPTT));}
 protected:
   std::set<std::string> TT_params = {"T_base","Pnight","Pday"};
   std::set<std::string> PTT_params = {};
@@ -21,7 +22,7 @@ protected:
   std::set<std::string> FT_params = {"D_LD","CSDL","CLDL"};
   std::set<std::string> Total_signal_params = {"D_SD"};
   std::set<std::string> Transition_params = {"Signal_threshold"};
-  int developmental_state;
+  // int developmental_state;
   void check_plant();
   // std::vector<double> TT; // thermal time history by day
   // std::vector<double> PTT; // PTU time history by day
@@ -55,6 +56,13 @@ double Wilczek_Plant::Signal_fun(double repression, double dayl){
 
 void Wilczek_Plant::check_plant() {
   // after updating parameters, goes through to check which summaries need to be re-set
+
+  if(bolting_day > 0 && developmental_state == 0) {
+    Rcout << "bolting_day: " << bolting_day;
+    Rcout << ", transition_day: " << transition_day;
+    Rcout << ", developmental_state: " << developmental_state;
+    Rcout << ", cumPTT.size(): " << cumPTT.size() << std::endl;
+  }
 
   // PTT depends on TT. So if TT is reset, so is PTT
   if(PTT.size() > TT.size()) {
@@ -101,6 +109,7 @@ void Wilczek_Plant::develop_day(){
     else {
       cumPTT.push_back(cumPTT.back() + PTT.back());
     }
+    if(cumPTT.size() != age) Rcout << "cumPTT wrong length\n";
   }
 
   // update meristem age
@@ -134,8 +143,7 @@ void Wilczek_Plant::develop_day(){
   }
 
   // check bolting
-  double Signal_threshold = params["Signal_threshold"];
-  if(transition_day == 0 & Total_signal[age-1] > Signal_threshold) {
+  if(developmental_state == 0 && Total_signal[age-1] > params["Signal_threshold"]) {
     developmental_state = 2; // bolting
     transition_day = age;
     bolting_day = age;
@@ -272,6 +280,7 @@ RCPP_MODULE(class_Wilczek_Plant) {
      .method("update_Signal_threshold",&Base_Plant::update_Signal_threshold)
      .method("get_predicted_bolting_PTT",&Base_Plant::get_predicted_bolting_PTT)
      .method("get_observed_bolting_PTTs",&Base_Plant::get_observed_bolting_PTTs)
+     .method("get_developmental_state",&Base_Plant::get_developmental_state)
   ;
   class_<Wilczek_Plant>("Wilczek_Plant")
     .constructor<String,String,String,NumericVector, NumericMatrix>()
@@ -279,6 +288,7 @@ RCPP_MODULE(class_Wilczek_Plant) {
     .method("update_params",& Wilczek_Plant::update_params)
     .method("TT_fun",& Wilczek_Plant::TT_fun)
     .method("Signal_fun",& Wilczek_Plant::Signal_fun)
+    .method("get_cumPTT",& Wilczek_Plant::get_cumPTT)
     .derives<Base_Plant>("Base_Plant")
   ;
 }
