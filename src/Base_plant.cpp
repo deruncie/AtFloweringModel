@@ -4,15 +4,25 @@ using namespace Rcpp;
 // #include "Environ_class.h"
 #include "Base_Plant_class.h"
 
-void Base_Plant::set_genotype_info(NumericMatrix param_ranges_,NumericMatrix design_matrix_genotype_,List param_transformations_){
+Base_Plant::Base_Plant(String id_, String gen_, String environ_,NumericVector params_, List env_):
+  id(id_),gen(gen_),environ(environ_),
+  age(0),transition_day(0),bolting_day(0),developmental_state(0),penalty(0),
+  param_transformations(Function("identity"))
+{
+  params = clone(params_);
+  env = clone(env_);
+  // param_transformations = Function("identity");
+}
+
+void Base_Plant::set_genotype_info(NumericMatrix param_ranges_,NumericMatrix design_matrix_genotype_,Function param_transformations_){
   param_ranges = clone(param_ranges_);
   design_matrix_genotype = clone(design_matrix_genotype_);
-  param_transformations = clone(param_transformations_);
+  param_transformations = param_transformations_;
 }
 
 NumericVector Base_Plant::update_coefs(NumericVector new_coefs){
   Function Update_coefs_R("Update_coefs_genotype");
-  List result = Update_coefs_R(new_coefs,params,design_matrix_genotype,param_ranges,param_transformations);
+  List result = Update_coefs_R(clone(new_coefs),params,design_matrix_genotype,param_ranges,param_transformations);
   NumericVector new_params = as<NumericVector>(result["new_params"]);
   penalty = as<double>(result["penalty"]);
 

@@ -1,5 +1,5 @@
 parameter,min,max,default,Col,Col FRI,vin 3-1,vin3-4 FRI,fve-3,gi-2
-Vsat,0,1.00E+03,0.96,Col,Col,vin3,vin3,Col,Col
+log10_Vsat,0,1.00E+01,2.982271233,Col,Col,vin3,vin3,Col,Col
 D_LD,0,1,1,Col,Col,Col,Col,Col,gi
 F_b,0,1,0.5,Col,FRI,FRI,FRI,fve,Col
 T_base,-10,10,3,,,,,,
@@ -13,4 +13,4 @@ CSDL,0,24,10,,,,,,
 CLDL,0,24,14,,,,,,
 Pday,0,1,1,,,,,,
 Pnight,0,1,0,,,,,,
-Signal_threshold,0,Inf,2.604,,,,,,
+log_Signal_threshold,0,20,7.864804003,,,,,,

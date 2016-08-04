@@ -5,14 +5,12 @@ using namespace Rcpp;
 
 class Base_Plant {
 public:
-  Base_Plant(String id_, String gen_, String environ_,NumericVector params_, List env_):
-  id(id_),gen(gen_),environ(environ_),
-  age(0),transition_day(0),bolting_day(0),developmental_state(0),penalty(0) {params = clone(params_);env = clone(env_); }
+  Base_Plant(String id_, String gen_, String environ_,NumericVector params_, List env_);
   // generic values
   String id, gen, environ;
 
   // generic functions
-  void set_genotype_info(NumericMatrix,NumericMatrix,List);
+  void set_genotype_info(NumericMatrix,NumericMatrix,Function);
   NumericVector update_coefs(NumericVector);
   void update_Signal_threshold(double thresh);
   double get_penalty() {return penalty;}
@@ -42,7 +40,7 @@ public:
 protected:
   NumericVector params;
   NumericMatrix param_ranges,design_matrix_genotype;
-  List param_transformations;
+  Function param_transformations;
   std::set<std::string> TT_params = {"T_base"};
   std::set<std::string> PTT_params = {"Pnight","Pday"};
   std::set<std::string> Vern_params = {"F_b","Vsat","k","w","xi","T_vmin","T_vmax"};

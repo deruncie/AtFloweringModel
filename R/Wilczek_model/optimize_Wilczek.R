@@ -5,15 +5,18 @@ source('prep_model.R')
 
 base_coefs = c(base_params,init_coefs_genotypes)
 
-init = base_coefs[c('D_SD','Col::F_b','FRI::F_b','fve::F_b','Signal_threshold')]
-init['Signal_threshold'] = init['Signal_threshold']/1000
+init = base_coefs[c('D_SD','Col::F_b','FRI::F_b','fve::F_b','log_Signal_threshold')]
 
 for(i in 1:length(init)) init[i] = runif(1,0,1)
-init['Signal_threshold'] = runif(1,0,3)
+init['log_Signal_threshold'] = rnorm(1,7,3)
 
-res = optim(init,obj_fun,Plant_list = Plant_list,control = list(trace=9))
-res = optim(res$par,obj_fun,Plant_list = Plant_list,control = list(trace=9));res
+res = optim(init,obj_fun,control = list(trace=9))
+res = optim(res$par,obj_fun,control = list(trace=9));res
 obj_fun(res$par,Plant_list)
+
+plant = Plant_list[['gi-2::FIBR_HalleFall']]
+plant = Plant_list[['vin 3-1::FIBR_CologneSpring']]
+plant$get_params()
 
 results = do.call(rbind,lapply(Plant_list,function(plant) {
   # plant$update_coefs(res$par)

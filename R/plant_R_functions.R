@@ -37,14 +37,14 @@ Build.param_ranges = function(file){
   return(param_range_list)
 }
 
-# Optimization is more efficient if all parameters are on the same scale.
-Build.param_transformations = function(param_names) {
-  param_transformation = list()
-  for(param in param_names) param_transformation[[param]] = function(x) x
-  param_transformation[['Vsat']] = function(x) 1e3 * x
-  param_transformation[['Signal_threshold']] = function(x) 1e3 * x
-  return(param_transformation)
-}
+# # Optimization is more efficient if all parameters are on the same scale.
+# Build.param_transformations = function(param_names) {
+#   param_transformation = list()
+#   for(param in param_names) param_transformation[[param]] = function(x) x
+#   param_transformation[['Vsat']] = function(x) 1e3 * x
+#   param_transformation[['Signal_threshold']] = function(x) 1e3 * x
+#   return(param_transformation)
+# }
 
 Fix_param_ranges = function(new_params, param_ranges){
   penalty = 0
@@ -121,12 +121,16 @@ Update_coefs_genotype = function(
 
   new_params = c(const_params,genotype_specific_params)
 
+
   if(length(new_params) > 0){
+    new_params = new_params[names(new_params) %in% rownames(param_ranges)]
     result = Fix_param_ranges(new_params = unlist(new_params), matrix(param_ranges[names(new_params),],nr=length(new_params)))
     new_params = result$new_params
     penalty = penalty + sum(result$penalty)
-    new_params = sapply(names(new_params),function(param) param_transformation[[param]](new_params[[param]]))
+    # new_params = sapply(names(new_params),function(param) param_transformation[[param]](new_params[[param]]))
   }
+  new_params = param_transformation(new_params)
+
 
   # only return params that have changed
   new_params = new_params[new_params != old_params[names(new_params)]]
@@ -137,13 +141,14 @@ weighted_CV = function(obs,pred,N){
   sqrt(sum((obs - pred)^2*N)/sum(obs^2*N))
 }
 
-obj_fun = function(new_coefs,Plant_list){
+obj_fun = function(new_coefs){
   r = do.call(rbind,lapply(Plant_list,function(plant) {
     plant$update_coefs(new_coefs)
     pred = plant$get_predicted_bolting_PTT()
     obs = plant$get_observed_bolting_PTTs()
     return(data.frame(pred = pred,obs = mean(obs),sd = sd(obs),N = length(obs)))
   }))
+
   penalty = sum(sapply(Plant_list,function(plant) plant$get_penalty()))
   # return(weighted_CV(r$obs,r$pred,r$N) + penalty)
   out = weighted_CV(1/r$obs,1/r$pred,r$N) + penalty

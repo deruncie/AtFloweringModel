@@ -12,19 +12,29 @@ genotype_parameter_values = 'Genotype_parameter_values_Wilczek_init.csv'
 
 design_matrix_genotype_list = Build.design_matrix_genotype_list(parameter_matrix_file,genotypes)
 param_range_list = Build.param_ranges(parameter_matrix_file)
-param_transformation_list = Build.param_transformations(names(param_range_list))
+# param_transformation_list = Build.param_transformations(names(param_range_list))
 
 genotype_coefs = colnames(design_matrix_genotype_list[[1]])
 
 # select initial value for each parameter (only numeric ones)
 base_params = as.list(sapply(names(param_range_list),function(x) as.numeric(param_range_list[[x]][3])))
 base_params = unlist(base_params[!is.na(base_params)])
-base_params = sapply(names(base_params),function(param) param_transformation_list[[param]](base_params[[param]]))
+# base_params = sapply(names(base_params),function(param) param_transformation_list[[param]](base_params[[param]]))
 # base_params[!is.na(as.numeric(base_params))] = as.numeric(base_params[!is.na(as.numeric(base_params))])
 
 init_coefs_genotypes = read.csv(genotype_parameter_values,h=T,check.names=F,stringsAsFactors=F,row.names=1)
 init_coefs_genotypes = init_coefs_genotypes[genotype_coefs,]
 names(init_coefs_genotypes) = genotype_coefs
+
+param_transformations = function(params){
+  if('log10_Vsat' %in% names(params)){
+    params['Vsat'] = 10^(params['log10_Vsat'])
+  }
+  if('log_Signal_threshold' %in% names(params)){
+    params['Signal_threshold'] = exp(params['log_Signal_threshold'])
+  }
+  return(params)
+}
 
 wilczek_results = read.csv('~/Documents/Arabidopsis/Compendium_data/individual_experiments/data/FIBR/Amity_data/Wilczek_bolting_data.txt')
 wilczek_results$Genotype = as.character(wilczek_results$Genotype)
@@ -43,14 +53,14 @@ for(genotype in genotypes){
   design_matrix_genotype = design_matrix_genotype_list[[genotype]]
   # param_ranges = t(sapply(rownames(design_matrix_genotype_list[[genotype]]),function(param) param_range_list[[param]]))
   param_ranges = t(sapply(names(base_params),function(param) param_range_list[[param]]))
-  param_transformations = param_transformation_list[rownames(param_ranges)]
+  # param_transformations = param_transformation_list[rownames(param_ranges)]
   for(env in plantings){
     id = paste(genotype,env,sep='::')
     # plant_index = rbind(plant_index,data.frame(Plant = id, Genotype = genotype, Treatment = env))
     index = fit_data_individuals$Genotype == genotype & fit_data_individuals$Treatment == env
     if(sum(index) == 0) next
 
-    plant = new(Wilczek_Plant,id,genotype,env,base_params,as.list(environ_data[[env]]))
+    plant = new(Wilczek_Plant,id,genotype,env,param_transformations(base_params),as.list(environ_data[[env]]))
     plant$set_genotype_info(param_ranges,design_matrix_genotype,param_transformations)
     plant$update_coefs(init_coefs_genotypes)
     plant$add_bolting_days(fit_data_individuals$DTB[index])
