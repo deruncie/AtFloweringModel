@@ -1,43 +1,34 @@
 #include <Rcpp.h>
 using namespace Rcpp;
 
-// #include "Environ_class.h"
 #include "Base_Plant_class.h"
 
 class Wilczek_Plant : public Base_Plant {
 public:
-  Wilczek_Plant(String id_, String gen_, String environ_,NumericVector params_, NumericMatrix env_): Base_Plant(id_,gen_,environ_,params_,env_) {}
-  void update_params(NumericVector);
-  void develop_day();
-  // int predict_bolting();
-  // double get_predicted_bolting_PTT();
-  double TT_fun(NumericVector,NumericVector);
-  double PTT_fun(double,double);
-  double Signal_fun(double,double);
+  Wilczek_Plant(String id_, String gen_, String environ_,NumericVector params_, List env_): Base_Plant(id_,gen_,environ_,params_,env_) {
+    TT_params = {"T_base"};
+    PTT_params = {"Pnight","Pday"};
+    Vern_params = {"F_b","Vsat","k","w","xi","T_vmin","T_vmax"};
+    FT_params = {"D_LD","CSDL","CLDL"};
+    Total_signal_params = {"D_SD"};
+    Transition_params = {"Signal_threshold"};
+  }
+  virtual ~Wilczek_Plant() {}
+  virtual void update_params(NumericVector);
+  virtual void develop_day();
+  virtual double TT_fun(NumericVector,NumericVector);
+  virtual double PTT_fun(double,double);
+  virtual double Signal_fun(double,double);
   NumericVector get_cumPTT() {return(wrap(cumPTT));}
 protected:
-  std::set<std::string> TT_params = {"T_base","Pnight","Pday"};
-  std::set<std::string> PTT_params = {};
-  std::set<std::string> Vern_params = {"F_b","Vsat","k","w","xi","T_vmin","T_vmax"};
-  std::set<std::string> FT_params = {"D_LD","CSDL","CLDL"};
-  std::set<std::string> Total_signal_params = {"D_SD"};
-  std::set<std::string> Transition_params = {"Signal_threshold"};
-  // int developmental_state;
   void check_plant();
-  // std::vector<double> TT; // thermal time history by day
-  // std::vector<double> PTT; // PTU time history by day
-  // std::vector<double> Vern; // Vern time history by day
-  // std::vector<double> FT_signal; // FT history by day
-  // std::vector<double> Total_signal; // cumPTU history by day
-  // std::vector<double> cumPTT; // cumPTU history by day
 };
 
 double Wilczek_Plant::TT_fun(NumericVector temps, NumericVector dts){
   return sum(pmax(temps-params["T_base"],0) * dts);
 }
-double Wilczek_Plant::PTT_fun(double sumTT, double dayl){
-  // dayl already in sumTT(day)
-  return sumTT;
+double Wilczek_Plant::PTT_fun(double sumTT_night, double sumTT_day){
+  return params["Pnight"]*sumTT_night + params["Pday"]*sumTT_day;
 }
 double Wilczek_Plant::Signal_fun(double repression, double dayl){
   double D_LD = params["D_LD"];
@@ -94,13 +85,13 @@ void Wilczek_Plant::develop_day(){
   // always 1st night, then day.
   // calc TT for day
   if(TT.size() < age){  // only do calculation if TT hasn't already been calculated.
-    double TT_night = params["Pnight"]*TT_fun(env.get_GrndTmp_Night(age),env.get_TimeSteps_Night(age));
-    double TT_day   = params["Pday"]  *TT_fun(env.get_GrndTmp_Day(age),env.get_TimeSteps_Day(age));
+    double TT_night = TT_fun(env.get_GrndTmp_Night(age),env.get_TimeSteps_Night(age));
+    double TT_day   = TT_fun(env.get_GrndTmp_Day(age),env.get_TimeSteps_Day(age));
     TT.push_back(TT_night + TT_day);
     if(TT.size() != age) Rcout << "TT wrong length\n";
 
     // add leaves
-    PTT.push_back(PTT_fun(TT_day,env.get_Daylength(age)));
+    PTT.push_back(PTT_fun(TT_night,TT_day));
     if(PTT.size() != age) Rcout << "PTT wrong length\n";
 
     if(age == 1) {
@@ -195,73 +186,9 @@ void Wilczek_Plant::update_params(NumericVector new_p){
   check_plant();
 }
 
-// double Wilczek_Plant::get_predicted_bolting_PTT(){
-//   if(bolting_day == 0) predict_bolting();
-//   if(cumPTT.size() < PTT.size()){
-//     cumPTT.clear();
-//     cumPTT.resize(PTT.size());
-//     std::partial_sum(PTT.begin(),PTT.end(),cumPTT.begin());
-//   }
-//   if(bolting_day <= env.numDays()) return cumPTT[bolting_day-1];
-//   return cumPTT[bolting_day-2] + PTT.back();
-// }
-//
-// NumericVector Wilczek_Plant::get_observed_bolting_PTTs(){
-//   if(max(observed_bolting_days) > age){
-//     develop_n(max(observed_bolting_days - age));
-//     // Rcout << age << ", " << observed_bolting_days << std::endl;
-//   }
-//   if(cumPTT.size() < PTT.size()){
-//     cumPTT.clear();
-//     cumPTT.resize(PTT.size());
-//     std::partial_sum(PTT.begin(),PTT.end(),cumPTT.begin());
-//   }
-//   NumericVector PTT_out(observed_bolting_days.length());
-//   for(int i = 0; i < observed_bolting_days.length(); i++){
-//     if(observed_bolting_days[i] <= cumPTT.size()){
-//       PTT_out[i] = cumPTT[observed_bolting_days[i]-1];
-//     }
-//     else {
-//       PTT_out[i] = NA_REAL;
-//     }
-//   }
-//   return PTT_out;
-// }
-
-// RCPP_MODULE(class_Plant) {
-//   class_<Plant>("Plant")
-//     .constructor<String,String,String,NumericVector, NumericMatrix>()
-//     // .constructor<String,String,String,NumericVector, NumericMatrix,NumericMatrix,List,NumericMatrix>()
-//     // .constructor<String,String,String,NumericVector, NumericMatrix,NumericMatrix,List,NumericMatrix>()
-//      .field("id",&Plant::id)
-//      .field("gen",&Plant::gen)
-//      .field("environ",&Plant::environ)
-//     .method("set_genotype_info",&Plant::set_genotype_info)
-//     .method("get_penalty",&Plant::get_penalty)
-//     .method("get_params",&Plant::get_params)
-//     .method("develop_n",&Plant::develop_n)
-//     .method("get_numLeaves",&Plant::get_numLeaves)
-//     .method("get_size",&Plant::get_size)
-//     .method("get_Vern",&Plant::get_Vern)
-//     .method("get_FT_signal",&Plant::get_FT_signal)
-//     .method("get_Total_signal",&Plant::get_Total_signal)
-//     .method("update_params",&Plant::update_params)
-//     .method("update_coefs",&Plant::update_coefs)
-//     .method("TT_fun",&Plant::TT_fun)
-//     .method("PTT_fun",&Plant::PTT_fun)
-//     .method("Vern_fun",&Plant::Vern_fun)
-//     .method("Signal_fun",&Plant::Signal_fun)
-//     .method("get_predicted_bolting_day",&Plant::get_predicted_bolting_day)
-//     .method("update_Signal_threshold",&Plant::update_Signal_threshold)
-//     .method("get_predicted_bolting_PTT",&Plant::get_predicted_bolting_PTT)
-//     .method("add_bolting_days",&Plant::add_bolting_days)
-//     .method("get_observed_bolting_PTTs",&Plant::get_observed_bolting_PTTs)
-//   ;
-// }
-
 RCPP_MODULE(class_Wilczek_Plant) {
   class_<Base_Plant>("Base_Plant")
-  .constructor<String,String,String,NumericVector, NumericMatrix>()
+  .constructor<String,String,String,NumericVector, List>()
      .field("id",&Base_Plant::id)
      .field("gen",&Base_Plant::gen)
      .field("environ",&Base_Plant::environ)
@@ -283,7 +210,7 @@ RCPP_MODULE(class_Wilczek_Plant) {
      .method("get_developmental_state",&Base_Plant::get_developmental_state)
   ;
   class_<Wilczek_Plant>("Wilczek_Plant")
-    .constructor<String,String,String,NumericVector, NumericMatrix>()
+    .constructor<String,String,String,NumericVector, List>()
     .method("develop_day",& Wilczek_Plant::develop_day)
     .method("update_params",& Wilczek_Plant::update_params)
     .method("TT_fun",& Wilczek_Plant::TT_fun)
@@ -299,7 +226,7 @@ RCPP_MODULE(class_Wilczek_Plant) {
 # env = environ_data[[1]]
 # save(env,file='test_env.RData')
 load('test_env.RData')
-  a = new(Environ,as.matrix(env))
+  a = new('Environ',as.list(env))
 
   params = list(
     CSDL = 8,
@@ -335,7 +262,7 @@ load('test_env.RData')
   param_transformations = lapply(names(params),function(x) identity)
   names(param_transformations) = names(params)
 
-  plant = new(Wilczek_Plant,'Col:RP1','Col','RP1',unlist(params),as.matrix(env))
+  plant = new(Wilczek_Plant,'Col:RP1','Col','RP1',unlist(params),as.list(env))
   plant$set_genotype_info(param_ranges,design_matrix_genotype,param_transformations)
   plant$develop_n(10)
   plot(plant$get_Total_signal())

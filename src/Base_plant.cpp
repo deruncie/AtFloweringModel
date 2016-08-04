@@ -32,9 +32,8 @@ double Base_Plant::TT_fun(NumericVector temps, NumericVector dts){
   Rcout << "base_TT\n";
   return sum(pmax(temps-params["T_base"],0) * dts);
 }
-double Base_Plant::PTT_fun(double sumTT, double dayl){
-  // dayl already in sumTT(day)
-  return sumTT;
+double Base_Plant::PTT_fun(double sumTT_night, double sumTT_day){
+  return params["Pnight"]*sumTT_night + params["Pday"]*sumTT_day;
 }
 double Base_Plant::Vern_fun(double old_state, NumericVector temps, NumericVector dts){
   if(old_state >= 1) return 1;
@@ -94,17 +93,13 @@ int Base_Plant::predict_bolting(){
 
   while(age < env.numDays() && developmental_state < 2) develop_day();
   if(developmental_state == 2) return bolting_day;
-
-  // Rcout << "No bolting: " << bolting_day << " " << age << std::endl;
   // if no bolting by end of env:
   return env.numDays()+1;
 }
 
 double Base_Plant::get_predicted_bolting_PTT(){
-  // if(bolting_day > 0 && developmental_state ==0) Rcout << bolting_day << " " << developmental_state << " error " << age << " " << env.numDays()<< std::endl; //stop("bolting and not developmental state");//
   if(developmental_state < 2) predict_bolting();
   if(developmental_state == 2) return cumPTT[bolting_day-1];
-  // Rcout << bolting_day << " past end " << cumPTT[bolting_day-2] << ", " << PTT.back() << std::endl;
   return cumPTT.back() + PTT.back();
 }
 
@@ -113,11 +108,6 @@ NumericVector Base_Plant::get_observed_bolting_PTTs(){
     develop_n(max(observed_bolting_days - age));
     // Rcout << age << ", " << observed_bolting_days << std::endl;
   }
-  // if(cumPTT.size() < PTT.size()){
-  //   cumPTT.clear();
-  //   cumPTT.resize(PTT.size());
-  //   std::partial_sum(PTT.begin(),PTT.end(),cumPTT.begin());
-  // }
   NumericVector PTT_out(observed_bolting_days.length());
   for(int i = 0; i < observed_bolting_days.length(); i++){
     if(observed_bolting_days[i] <= cumPTT.size()){

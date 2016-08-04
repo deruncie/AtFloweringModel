@@ -5,22 +5,26 @@ typedef std::vector<int> int_vector;
 
 class Day {
 public:
-  Day(double Daylength);
-  void add_hour(double GrndTmp, double PAR, double timestep);
+  Day(int year, int doy, double dayl): Year(year), DOY(doy), Daylength(dayl) {}
+  void add_hour(double GrndTmp, double PAR, double timestep,int hr);
+  int Year, DOY;
   double Daylength;
   std::vector<double> GrndTmps, PARs, timesteps;
+  std::vector<int> HourInDay;
 };
 class Night {
 public:
-  Night();
-  void add_hour(double GrndTmp, double timestep);
+  Night(int year, int doy): Year(year), DOY(doy) {}
+  void add_hour(double GrndTmp, double timestep,int hr);
   std::vector<double> GrndTmps, timesteps;
+  int Year, DOY;
+  std::vector<int> HourInDay;
 };
 
 class Environ {
 public:
   Environ() {}
-  Environ(NumericMatrix);
+  Environ(List);
   int numDays() {return Days.size();}
   double get_Daylength(int);
   NumericVector get_GrndTmp_Day(int);
@@ -28,10 +32,9 @@ public:
   NumericVector get_PAR_Day(int);
   NumericVector get_TimeSteps_Day(int);
   NumericVector get_TimeSteps_Night(int);
-  // double sumTemps(IntegerVector);
+  void repeat_last_day();
+  List make_env_list();
 protected:
-  std::vector<int> Year;
-  std::vector<int> Date;
   std::vector<Day> Days;
   std::vector<Night> Nights;
 };

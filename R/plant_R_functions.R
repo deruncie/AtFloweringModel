@@ -153,12 +153,6 @@ obj_fun = function(new_coefs,Plant_list){
   return(out)
 }
 
-# Update_params_plants = function(plants, new_param_list) {
-#   # tells each plant to updates its parameters
-#   plants = lapply(plants,function(plant) {
-#     plant$update_params(new_param_list[[plants$gen]]$new_params)
-#   })
-#   return(plants)
-# }
 
-# Update_bolting_predictions = function(new_coefs,)
+
+FT_per_leaf = function(Dayl,FT_LD_vs_SD) (FT_max_fun(Dayl)/FT_max_fun(6))^(log(FT_LD_vs_SD)/(log(FT_max_fun(16)/FT_max_fun(8))))
