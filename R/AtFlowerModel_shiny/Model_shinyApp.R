@@ -1,48 +1,3 @@
-#
-# This is a Shiny web application. You can run the application by clicking
-# the 'Run App' button above.
-#
-# Find out more about building applications with Shiny here:
-#
-#    http://shiny.rstudio.com/
-#
-source('plotting_functions.R')
-source('../Wilczek_model/prep_model.R',chdir=T)
-current_model = 'Wilczek'
-
-slider_functions = list(
-  Choose_model = c('Wilczek','New'),
-  Optimize_threshold = c(TRUE,FALSE),
-  DO_recover = c(FALSE,TRUE)
-)
-
-generic_params = c('T_base','D_SD','CSDL','CLDL','Pnight')
-switches = c()
-
-slider_generic_params = lapply(generic_params,function(param) param_range_list[[param]][c(3,1,2)])
-names(slider_generic_params) = generic_params
-
-slider_switches = lapply(switches,function(param) param_range_list[[param]][c(3,1,2)])
-names(slider_switches) = switches
-
-slider_genotype_params = lapply(genotype_coefs,function(coef){
-  generic_coef = strsplit(coef,'::',fixed=T)[[1]][[2]]
-  return(unlist(c(init_coefs_genotypes[coef],param_range_list[[generic_coef]][1:2])))
-})
-names(slider_genotype_params) = sub('::','_',genotype_coefs)
-
-slider_plants = list(
-  Genotype = c(genotypes,'All'),
-  Environment = c('All',fit_plantings)
-)
-
-slider_params = list(slider_generic_params = slider_generic_params,
-                     slider_genotype_params = slider_genotype_params,
-                     slider_functions       = slider_functions,
-                     slider_switches        = slider_switches,
-                     slider_plants          = slider_plants)
-
-
 
 library(shiny)
 
@@ -191,15 +146,20 @@ server <- function(input, output) {
     names(new_coefs)[match(names(slider_genotype_params),names(new_coefs))] = genotype_coefs
     # new_coefs[is.na(new_coefs)] = 0
 
+    new_coefs = param_transformations(new_coefs)
     print(new_coefs)
+    print('')
     # update coefs per plant
     res = sapply(Plant_list,function(plant) plant$update_coefs(new_coefs))
 
-    # re-optimize threshold
-    init = c(Signal_threshold = Plant_list[[1]]$get_params()['Signal_threshold'])
-    names(init) = 'Signal_threshold'
-    f = sprintf('function(x) obj_fun(c(%s = x),Plant_list = Plant_list)',names(init))
-    res = optimise(f = eval(parse(text = f)),interval = pmin(param_range_list[[names(init)]],10))
+    if(input$Optimize_threshold){
+      print('optimizing')
+      # re-optimize threshold
+      init = c(log10_Signal_threshold = Plant_list[[1]]$get_params()['log10_Signal_threshold'])
+      names(init) = 'log10_Signal_threshold'
+      f = sprintf('function(x) obj_fun(c(%s = x))',names(init))
+      res = optimise(f = eval(parse(text = f)),interval = param_range_list[[names(init)]])
+    }
 
     if(!is.null(input$DO_recover) && input$DO_recover == T) recover()
 
@@ -214,7 +174,7 @@ server <- function(input, output) {
     names(new_coefs)[match(names(slider_genotype_params),names(new_coefs))] = genotype_coefs
 
     # update coefs per plant
-    new_coefs['Signal_threshold'] = Plant_list[[1]]$get_params()['Signal_threshold']/1e3
+    new_coefs['log10_Signal_threshold'] = Plant_list[[1]]$get_params()['log10_Signal_threshold']
     print(new_coefs)
     res = sapply(Validation_Plant_list,function(plant) plant$update_coefs(new_coefs))
 
@@ -237,7 +197,12 @@ server <- function(input, output) {
     if(gen == 'All') gen = genotypes[1]
     if(env == 'All') env = fit_plantings[1]
 
+    new_coefs = sapply(c(names(slider_generic_params),names(slider_switches),names(slider_genotype_params)),function(param) input[[param]])
+    names(new_coefs)[match(names(slider_genotype_params),names(new_coefs))] = genotype_coefs
+    new_coefs = param_transformations(new_coefs)
     plant = Plant_list[[paste(gen,env,sep='::')]]
+    plant$update_coefs(new_coefs)
+
     plot_env_responses(plant,cex_main = cex_main())
   })
   output$plot_env_responses.ui = renderUI({
@@ -284,7 +249,11 @@ server <- function(input, output) {
     }))
 
     # observed vs predicted plot
-    ggplot(results,aes(x=obs,y=pred)) + geom_point(aes(color=Treatment,size=N)) + geom_abline(intercept = 0,slope=1) + scale_size_area()
+    if(input$Color_by == 'Genotype') {
+      ggplot(results,aes(x=obs,y=pred)) + geom_point(aes(color=Genotype,size=N)) + geom_abline(intercept = 0,slope=1) + scale_size_area()
+    } else {
+      ggplot(results,aes(x=obs,y=pred)) + geom_point(aes(color=Treatment,size=N)) + geom_abline(intercept = 0,slope=1) + scale_size_area()
+    }
 
 
   })														# reactiveUi adjusts height of plot.
@@ -301,7 +270,11 @@ server <- function(input, output) {
     }))
 
     # observed vs predicted plot
-    ggplot(results,aes(x=obs,y=pred)) + geom_point(aes(color=Treatment,size=N)) + geom_abline(intercept = 0,slope=1) + scale_size_area()
+    if(input$Color_by == 'Genotype') {
+      ggplot(results,aes(x=obs,y=pred)) + geom_point(aes(color=Genotype,size=N)) + geom_abline(intercept = 0,slope=1) + scale_size_area()
+    } else {
+      ggplot(results,aes(x=obs,y=pred)) + geom_point(aes(color=Treatment,size=N)) + geom_abline(intercept = 0,slope=1) + scale_size_area()
+    }
 
   })														# reactiveUi adjusts height of plot.
   output$plot_validation_dots.ui = renderUI({
@@ -343,7 +316,3 @@ server <- function(input, output) {
   })
 
 }
-
-# Run the application
-shinyApp(ui = ui, server = server)
-

@@ -10,7 +10,8 @@ Base_Plant::Base_Plant(String id_, String gen_, String environ_,NumericVector pa
   param_transformations(Function("identity"))
 {
   params = clone(params_);
-  env = clone(env_);
+  Environ e(clone(env_));
+  env = e;
   // param_transformations = Function("identity");
 }
 
@@ -45,15 +46,12 @@ double Base_Plant::TT_fun(NumericVector temps, NumericVector dts){
 double Base_Plant::PTT_fun(double sumTT_night, double sumTT_day){
   return params["Pnight"]*sumTT_night + params["Pday"]*sumTT_day;
 }
-double Base_Plant::Vern_fun(double old_state, NumericVector temps, NumericVector dts){
-  if(old_state >= 1) return 1;
-  double Vsat = params["Vsat"];
+double Base_Plant::Vern_fun(NumericVector temps, NumericVector dts){
   double T_vmin = params["T_vmin"];
   double T_vmax = params["T_vmax"];
   double k = params["k"];
   double w = params["w"];
   double xi = params["xi"];
-  double F_b = params["F_b"];
 
   double Ve = 0;
 
@@ -62,7 +60,7 @@ double Base_Plant::Vern_fun(double old_state, NumericVector temps, NumericVector
       Ve += exp(k) * pow(temps[i] - T_vmin,w) * pow(T_vmax - temps[i],xi) * dts[i];
     }
   }
-  return std::min(old_state + (Ve/Vsat*(1-F_b)),1.0);
+  return Ve;
 }
 double Base_Plant::Signal_fun(double repression, double dayl){
   double D_LD = params["D_LD"];
@@ -90,6 +88,10 @@ int Base_Plant::get_predicted_bolting_day(){
   return predict_bolting();
 }
 
+int Base_Plant::get_predicted_transition_day(){
+  if(transition_day > 0) return transition_day;
+  return predict_bolting();
+}
 void Base_Plant::add_bolting_days(IntegerVector days){
   observed_bolting_days = days;
 }

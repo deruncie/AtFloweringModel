@@ -27,11 +27,15 @@ init_coefs_genotypes = init_coefs_genotypes[genotype_coefs,]
 names(init_coefs_genotypes) = genotype_coefs
 
 param_transformations = function(params){
-  if('log10_Vsat' %in% names(params)){
-    params['Vsat'] = 10^(params['log10_Vsat'])
+  log_pars = names(params)[substr(names(params),1,5) == 'log10']
+  for(p in log_pars){
+    params[sub('log10_','',p)] = 10^params[p]
   }
-  if('log_Signal_threshold' %in% names(params)){
-    params['Signal_threshold'] = exp(params['log_Signal_threshold'])
+  if('T_vmax' %in% names(params)){
+    for(p in c('T_vmin','k','xi','w')){
+      if(! p %in% names(params)) params[p] = base_params[p]
+      params = Calc.Ve_params(params)
+    }
   }
   return(params)
 }

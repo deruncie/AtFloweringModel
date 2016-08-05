@@ -107,13 +107,25 @@ void Wilczek_Plant::develop_day(){
   // if vegetative:
   // calc vern for day
   if(Vern.size() < age){
+    double F_b = params["F_b"];
+    double Vsat = params["Vsat"];
     double current_vern = params["F_b"];
+    double Ve;
     if(Vern.size() > 0) current_vern = Vern[age-2];
-    // Vernalize during night
-    current_vern = Vern_fun(current_vern,env.get_GrndTmp_Night(age),env.get_TimeSteps_Night(age));
-    // Vernalize during next day
-    current_vern = Vern_fun(current_vern,env.get_GrndTmp_Day(age),env.get_TimeSteps_Day(age));
-    Vern.push_back(current_vern);
+    if(current_vern == 1.0) {
+      Vern.push_back(current_vern);
+    }
+    else {
+      // Vernalize during night
+      Ve = Vern_fun(env.get_GrndTmp_Night(age),env.get_TimeSteps_Night(age));
+      current_vern = std::min(current_vern + (Ve/Vsat*(1-F_b)),1.0);
+      // current_vern = Vern_fun(current_vern,env.get_GrndTmp_Night(age),env.get_TimeSteps_Night(age));
+      // Vernalize during next day
+      // current_vern = Vern_fun(current_vern,env.get_GrndTmp_Day(age),env.get_TimeSteps_Day(age));
+      Ve = Vern_fun(env.get_GrndTmp_Day(age),env.get_TimeSteps_Day(age));
+      current_vern = std::min(current_vern + (Ve/Vsat*(1-F_b)),1.0);
+      Vern.push_back(current_vern);
+    }
     if(Vern.size() != age) Rcout << "Vern wrong length\n";
   }
 
@@ -161,6 +173,7 @@ void Wilczek_Plant::update_params(NumericVector new_p){
     }
     if(PTT_params.find(name) != PTT_params.end()) {
       // Rcout << "PTT\n";
+      TT.clear();
       PTT.clear();
       cumPTT.clear();
       FT_signal.clear();
@@ -204,10 +217,12 @@ RCPP_MODULE(class_Wilczek_Plant) {
      .method("update_coefs",&Base_Plant::update_coefs)
      .method("add_bolting_days",&Base_Plant::add_bolting_days)
      .method("get_predicted_bolting_day",&Base_Plant::get_predicted_bolting_day)
+     .method("get_predicted_transition_day",&Base_Plant::get_predicted_transition_day)
      .method("update_Signal_threshold",&Base_Plant::update_Signal_threshold)
      .method("get_predicted_bolting_PTT",&Base_Plant::get_predicted_bolting_PTT)
      .method("get_observed_bolting_PTTs",&Base_Plant::get_observed_bolting_PTTs)
      .method("get_developmental_state",&Base_Plant::get_developmental_state)
+     .method("Vern_fun",& Base_Plant::Vern_fun)
   ;
   class_<Wilczek_Plant>("Wilczek_Plant")
     .constructor<String,String,String,NumericVector, List>()

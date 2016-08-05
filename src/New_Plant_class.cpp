@@ -17,8 +17,8 @@ private:
 class New_Plant : public Base_Plant {
 public:
   New_Plant(String id_, String gen_, String environ_,NumericVector params_, List env_): Base_Plant(id_,gen_,environ_,params_,env_) {
-    TT_params = {"Tmin","T10","Topt","Tmax","Pnight","Pday"};
-    PTT_params = {};
+    TT_params = {"Tmin","T10","Topt","Tmax"};
+    PTT_params = {"Pnight","Pday"};
     Vern_params = {"F_b","Vsat","k","w","xi","T_vmin","T_vmax"};
     FT_params = {"FT_LD_vs_SD","FT_base"};
     Total_signal_params = {"FT_vs_GA"};
@@ -36,6 +36,7 @@ public:
   virtual NumericVector get_numLeaves() ;
   virtual NumericVector get_cumTT() {return wrap(cumTT);}
   virtual NumericVector get_GA_signal() {return wrap(GA_signal);}
+  NumericVector get_FT_per_leaf(double,double);
 protected:
   virtual void check_plant();
   std::set<std::string> Bolting_params = {"Bolting_threshold"};
@@ -78,14 +79,7 @@ double New_Plant::PTT_fun(double sumTT_night, double sumTT_day){
 }
 double New_Plant::Signal_fun(double dayl, double HT_repression){
   Function FT_per_leaf("FT_per_leaf");
-  double FT_max = as<double>(FT_per_leaf(dayl,params["FT_LD_vs_SD"]));
-
-  double total_FT = 0;
-  std::vector<Leaf>::iterator leaf_it;
-  for(leaf_it = Leaves.begin(); leaf_it < Leaves.end(); leaf_it++){
-    total_FT += leaf_it->make_FT(FT_max, HT_repression);
-  }
-  return total_FT;
+  return as<double>(FT_per_leaf(dayl,params["FT_LD_vs_SD"])) * HT_repression;
 }
 
 void New_Plant::check_plant() {}
@@ -107,7 +101,7 @@ void New_Plant::develop_day(){
     TT_night = TT_fun(env.get_GrndTmp_Night(age),env.get_TimeSteps_Night(age));
     TT_day   = TT_fun(env.get_GrndTmp_Day(age),env.get_TimeSteps_Day(age));
     TT.push_back(TT_night + TT_day);
-    if(TT.size() != age) Rcout << "TT wrong length\n";
+    if(TT.size() != age) Rcout << "TT wrong length: " << TT.size() << ", " << age << "\n";
 
     if(age == 1) {
       cumTT.push_back(TT.back());
@@ -145,13 +139,23 @@ void New_Plant::develop_day(){
 
     // calc vern for day
     if(Vern.size() < age){
+      double F_b = params["F_b"];
+      double Vsat = params["Vsat"];
       double current_vern = params["F_b"];
+      double Ve;
       if(Vern.size() > 0) current_vern = Vern[age-2];
-      // Vernalize during night
-      current_vern = Vern_fun(current_vern,env.get_GrndTmp_Night(age),env.get_TimeSteps_Night(age));
-      // Vernalize during next day
-      current_vern = Vern_fun(current_vern,env.get_GrndTmp_Day(age),env.get_TimeSteps_Day(age));
-      Vern.push_back(current_vern);
+      if(current_vern == 1.0) {
+        Vern.push_back(current_vern);
+      }
+      else {
+        // Vernalize during night
+        Ve = Vern_fun(env.get_GrndTmp_Night(age),env.get_TimeSteps_Night(age));
+        current_vern = std::min(current_vern + (Ve/Vsat*(1-F_b)),1.0);
+        // Vernalize during next day
+        Ve = Vern_fun(env.get_GrndTmp_Day(age),env.get_TimeSteps_Day(age));
+        current_vern = std::min(current_vern + (Ve/Vsat*(1-F_b)),1.0);
+        Vern.push_back(current_vern);
+      }
       if(Vern.size() != age) Rcout << "Vern wrong length\n";
     }
 
@@ -166,23 +170,39 @@ void New_Plant::develop_day(){
     double HT_repression = HighTemp_fun(env.get_GrndTmp_Day(age),env.get_TimeSteps_Day(age));
 
     if(FT_signal.size() < age) {
-      FT_signal.push_back(Signal_fun(env.get_Daylength(age),HT_repression));
+
+      double FT_max = Signal_fun(env.get_Daylength(age),HT_repression);
+
+      double total_FT = 0;
+      std::vector<Leaf>::iterator leaf_it;
+      for(leaf_it = Leaves.begin(); leaf_it < Leaves.end(); leaf_it++){
+        if(leaf_it->day_emerged > age) continue;
+        total_FT += leaf_it->make_FT(FT_max, HT_repression);
+      }
+      FT_signal.push_back(total_FT);
       if(FT_signal.size() != age) Rcout << "FT_signal wrong length\n";
     }
     if(GA_signal.size() < age) {
+      // double GA = 0;
+      // for(int i = 0; i < age; i++){
+      //   GA += PTT[i] * Vern[i];
+      // }
+      // GA_signal.push_back(GA);
       GA_signal.push_back(cumPTT[age-1] * Vern[age-1]);
       if(GA_signal.size() != age) Rcout << "GA_signal wrong length\n";
     }
     if(Total_signal.size() < age) {
-      double new_Total_signal = (params["FT_vs_GA"] * FT_signal[age-1] + params["GA_vs_FT"] * GA_signal[age-1]) * HT_repression;
+      double new_Total_signal = (params["FT_vs_GA"] * FT_signal[age-1] + GA_signal[age-1]) * HT_repression;
       Total_signal.push_back(new_Total_signal);
       if(Total_signal.size() != age) Rcout << "Total_signal wrong length " << age << " " << Total_signal.size() << std::endl;
     }
 
     // check if transition
     if(Total_signal[age-1] > params["Signal_threshold"]){
+      // if(developmental_state == 1) Rcout << "already transitioned\n";
       developmental_state = 1; // state = transition
       transition_day = age;
+      // if(FT_signal.size() < transition_day) Rcout << "trans != FT.size " << FT_signal.size() << " " << transition_day << std::endl;
     }
   }
 
@@ -211,7 +231,9 @@ void New_Plant::update_params(NumericVector new_p){
     if(TT_params.find(name) != TT_params.end()) {
       // Rcout << "TT\n";
       TT.clear();
+      cumTT.clear();
       PTT.clear();
+      cumPTT.clear();
       Leaves.clear();
       FT_signal.clear();
       GA_signal.clear();
@@ -221,6 +243,7 @@ void New_Plant::update_params(NumericVector new_p){
     if(PTT_params.find(name) != PTT_params.end()) {
       // Rcout << "PTT\n";
       PTT.clear();
+      cumPTT.clear();
       Leaves.clear();
       FT_signal.clear();
       GA_signal.clear();
@@ -266,28 +289,39 @@ NumericVector New_Plant::get_numLeaves() {
   // return cumTT_R/params["TT_phyllochron"];
 }
 
+NumericVector New_Plant::get_FT_per_leaf(double dayl,double HT_repression){
+  NumericVector FT_per_leaf(Leaves.size());
+  double FT_max = Signal_fun(dayl,HT_repression);
+  for(int i = 0; i< Leaves.size(); i++) {
+    FT_per_leaf[i] = params["FT_vs_GA"] * Leaves[i].make_FT(FT_max, HT_repression);
+  }
+  return FT_per_leaf;
+}
+
 
 RCPP_MODULE(class_New_Plant) {
   class_<Base_Plant>("Base_Plant")
-  .constructor<String,String,String,NumericVector, List>()
-  .field("id",&Base_Plant::id)
-  .field("gen",&Base_Plant::gen)
-  .field("environ",&Base_Plant::environ)
-  .method("set_genotype_info",&Base_Plant::set_genotype_info)
-  .method("get_penalty",&Base_Plant::get_penalty)
-  .method("get_params",&Base_Plant::get_params)
-  .method("develop_n",&Base_Plant::develop_n)
-  .method("get_size",&Base_Plant::get_size)
-  .method("get_Vern",&Base_Plant::get_Vern)
-  .method("get_FT_signal",&Base_Plant::get_FT_signal)
-  .method("get_Total_signal",&Base_Plant::get_Total_signal)
-  .method("update_coefs",&Base_Plant::update_coefs)
-  .method("add_bolting_days",&Base_Plant::add_bolting_days)
-  .method("get_predicted_bolting_day",&Base_Plant::get_predicted_bolting_day)
-  .method("update_Signal_threshold",&Base_Plant::update_Signal_threshold)
-  .method("get_predicted_bolting_PTT",&Base_Plant::get_predicted_bolting_PTT)
-  .method("get_observed_bolting_PTTs",&Base_Plant::get_observed_bolting_PTTs)
-  .method("get_developmental_state",&Base_Plant::get_developmental_state)
+    .constructor<String,String,String,NumericVector, List>()
+    .field("id",&Base_Plant::id)
+    .field("gen",&Base_Plant::gen)
+    .field("environ",&Base_Plant::environ)
+    .method("set_genotype_info",&Base_Plant::set_genotype_info)
+    .method("get_penalty",&Base_Plant::get_penalty)
+    .method("get_params",&Base_Plant::get_params)
+    .method("develop_n",&Base_Plant::develop_n)
+    .method("get_size",&Base_Plant::get_size)
+    .method("get_Vern",&Base_Plant::get_Vern)
+    .method("get_FT_signal",&Base_Plant::get_FT_signal)
+    .method("get_Total_signal",&Base_Plant::get_Total_signal)
+    .method("update_coefs",&Base_Plant::update_coefs)
+    .method("add_bolting_days",&Base_Plant::add_bolting_days)
+    .method("get_predicted_bolting_day",&Base_Plant::get_predicted_bolting_day)
+    .method("get_predicted_transition_day",&Base_Plant::get_predicted_transition_day)
+    .method("update_Signal_threshold",&Base_Plant::update_Signal_threshold)
+    .method("get_predicted_bolting_PTT",&Base_Plant::get_predicted_bolting_PTT)
+    .method("get_observed_bolting_PTTs",&Base_Plant::get_observed_bolting_PTTs)
+    .method("get_developmental_state",&Base_Plant::get_developmental_state)
+    .method("Vern_fun",& Base_Plant::Vern_fun)
   ;
   class_<New_Plant>("New_Plant")
     .constructor<String,String,String,NumericVector, List>()
@@ -298,6 +332,7 @@ RCPP_MODULE(class_New_Plant) {
     .method("get_numLeaves",& New_Plant::get_numLeaves)
     .method("get_cumTT",& New_Plant::get_cumTT)
     .method("get_GA_signal",& New_Plant::get_GA_signal)
+    .method("get_FT_per_leaf",& New_Plant::get_FT_per_leaf)
     .derives<Base_Plant>("Base_Plant")
   ;
 }

@@ -20,6 +20,7 @@ public:
   int get_developmental_state() {return developmental_state;}
   int predict_bolting();
   int get_predicted_bolting_day();
+  int get_predicted_transition_day();
   double get_predicted_bolting_PTT();
   NumericVector get_observed_bolting_PTTs();
   NumericVector get_size() {return wrap(cumPTT);}
@@ -33,11 +34,13 @@ public:
   virtual void develop_day() {}
   virtual double TT_fun(NumericVector,NumericVector);
   virtual double PTT_fun(double,double);
-  virtual double Vern_fun(double,NumericVector,NumericVector);
+  virtual double Vern_fun(NumericVector,NumericVector);
   virtual double Signal_fun(double,double);
   virtual NumericVector get_numLeaves() {return wrap(TT);}
   // int predict_flowering();
 protected:
+  int age, transition_day, bolting_day, developmental_state;
+  double penalty;
   NumericVector params;
   NumericMatrix param_ranges,design_matrix_genotype;
   Function param_transformations;
@@ -47,8 +50,6 @@ protected:
   std::set<std::string> FT_params = {"D_LD","CSDL","CLDL"};
   std::set<std::string> Total_signal_params = {"D_SD"};
   std::set<std::string> Transition_params = {"Signal_threshold"};
-  int age, transition_day, bolting_day, developmental_state;
-  double penalty;
   IntegerVector observed_bolting_days;
   Environ env;
   std::vector<double> TT; // thermal time history by day

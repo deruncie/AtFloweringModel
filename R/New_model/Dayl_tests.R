@@ -18,7 +18,7 @@ env_lists = lapply(Dayls,function(dayl) {
 
 # plot(env_lists[[5]]$Hrs.light,type='l',col=2)
 
-base_params = c(
+base_params2 = c(
   Tmin = 3,
   Topt = 20,
   T10 = (10-3)/(20-3),
@@ -35,7 +35,7 @@ base_params = c(
   FT_LD_vs_SD = 100,
   FT_base = 0,
   FT_vs_GA = 1/674.1914,#/(2*10293.23)*17,
-  GA_vs_FT = 1,
+  # GA_vs_FT = 1,
   Signal_threshold = 6946975/674.1914,
   Bolting_threshold = 0,
   TT_germ = 0,#17*5*24,
@@ -47,7 +47,7 @@ res = do.call(rbind,lapply(1:length(Dayls),function(i) {
   id = sprintf('Dayl_%0.2f',dayl)
   genotype = 'WT'
   environ = sprintf('0.2f',dayl)
-  plant = new(New_Plant,id,genotype,environ,base_params,as.list(env_lists[[i]]))
+  plant = new(New_Plant,id,genotype,environ,base_params2,as.list(env_lists[[i]]))
   # plant$get_predicted_bolting_day()
   # plant$get_numLeaves()
   # plant$get_cumTT()
@@ -63,12 +63,12 @@ ggplot(res,aes(x=Dayl,y=TLN)) + geom_line() + ylim(c(0,70))
 # find where FT_signal and GA_signal are equal at bolting
 
 dayl = Dayls[24]
-plant = new(New_Plant,id,genotype,environ,base_params,as.list(env_lists[[match(dayl,Dayls)]]))
-obj_fun = function(FT_vs_GA,dayl){
-  plant$update_params(c(FT_vs_GA = 10^(FT_vs_GA)))
+plant = new(New_Plant,'id','genotype','environ',base_params,as.list(env_lists[[match(dayl,Dayls)]]))
+obj_fun = function(l10_FT_vs_GA,dayl){
+  plant$update_params(c(FT_vs_GA = 10^(l10_FT_vs_GA)))
   DTB = plant$get_predicted_bolting_day()
   # print(c(FT_vs_GA,DTB,plant$get_FT_signal()[DTB],plant$get_GA_signal()[DTB]))
-  return(abs(10^(FT_vs_GA)*plant$get_FT_signal()[DTB] - plant$get_GA_signal()[DTB]))
+  return(abs(10^(l10_FT_vs_GA)*plant$get_FT_signal()[DTB] - plant$get_GA_signal()[DTB]))
 }
 res = optimize(obj_fun,c(-10,10))
 res

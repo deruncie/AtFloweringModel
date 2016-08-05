@@ -5,10 +5,10 @@ source('prep_model.R')
 
 base_coefs = c(base_params,init_coefs_genotypes)
 
-init = base_coefs[c('D_SD','Col::F_b','FRI::F_b','fve::F_b','log_Signal_threshold')]
+init = base_coefs[c('D_SD','Col::F_b','FRI::F_b','fve::F_b','log10_Signal_threshold')]
 
 for(i in 1:length(init)) init[i] = runif(1,0,1)
-init['log_Signal_threshold'] = rnorm(1,7,3)
+init['log10_Signal_threshold'] = rnorm(1,3,1)
 
 res = optim(init,obj_fun,control = list(trace=9))
 res = optim(res$par,obj_fun,control = list(trace=9));res
@@ -31,8 +31,8 @@ ggplot(results,aes(x=obs,y=pred)) + geom_point(aes(color=Treatment,size=N)) + ge
 
 # to change a single paramter, and then re-optimize threshold:
 a=sapply(Plant_list,function(plant) plant$update_coefs(c(T_base = 3)))
-init = c(Signal_threshold = 2.3)
-f = sprintf('function(x) obj_fun(c(%s = x),Plant_list = Plant_list)',names(init))
+init = c(log10_Signal_threshold = 2.3)
+f = sprintf('function(x) obj_fun(c(%s = x))',names(init))
 res = optimise(f = eval(parse(text = f)),interval = pmin(param_range_list[[names(init)]],10))
 res
 

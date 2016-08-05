@@ -123,17 +123,22 @@ Update_coefs_genotype = function(
 
 
   if(length(new_params) > 0){
-    new_params = new_params[names(new_params) %in% rownames(param_ranges)]
-    result = Fix_param_ranges(new_params = unlist(new_params), matrix(param_ranges[names(new_params),],nr=length(new_params)))
-    new_params = result$new_params
+    new_params_to_check = new_params[names(new_params) %in% rownames(param_ranges)]
+    result = Fix_param_ranges(new_params = unlist(new_params_to_check), matrix(param_ranges[names(new_params_to_check),],nr=length(new_params_to_check)))
+    new_params[names(result$new_params)] = result$new_params
     penalty = penalty + sum(result$penalty)
     # new_params = sapply(names(new_params),function(param) param_transformation[[param]](new_params[[param]]))
   }
-  new_params = param_transformation(new_params)
-
 
   # only return params that have changed
   new_params = new_params[new_params != old_params[names(new_params)]]
+
+  new_params = param_transformation(new_params)
+  # print(new_params)
+  # if(sum(is.na(names(new_params)))) recover()
+  # if(names(new_params)[1] == 'FT_vs_GA' && names(new_params)[2] == 'F_b') recover()
+
+
   return(list(new_params = new_params, penalty = penalty))
 }
 
@@ -142,6 +147,8 @@ weighted_CV = function(obs,pred,N){
 }
 
 obj_fun = function(new_coefs){
+  new_coefs = param_transformations(new_coefs)
+  # print(new_coefs)
   r = do.call(rbind,lapply(Plant_list,function(plant) {
     plant$update_coefs(new_coefs)
     pred = plant$get_predicted_bolting_PTT()
@@ -161,3 +168,71 @@ obj_fun = function(new_coefs){
 
 
 FT_per_leaf = function(Dayl,FT_LD_vs_SD) (FT_max_fun(Dayl)/FT_max_fun(6))^(log(FT_LD_vs_SD)/(log(FT_max_fun(16)/FT_max_fun(8))))
+
+refit_Ve_xi = function(xi,params,return_pred = F){
+  T_vmin = params['T_vmin']
+  T_vmax = params['T_vmax']
+
+  w = xi*log((T_vmax - 4)/(T_vmax - 2))/log((2-T_vmin)/(4-T_vmin))
+  k = log(1/((2-T_vmin)^w*(T_vmax-2)^xi))
+
+  Temps = c(-3.5,-.5)
+  Ve = c(.051,.43)
+  fitted_vern = exp(k)*(Temps-T_vmin)^w*(T_vmax-Temps)^xi
+  fitted_vern[fitted_vern<T_vmin] = 0
+  fitted_vern[fitted_vern>T_vmax] = 0
+
+  return(sum((Ve - fitted_vern)^2))
+}
+Calc.Ve_params = function(params){
+  result = optimize(refit_Ve_xi,interval = c(0,20),params = params)
+  params['xi'] = result$minimum
+  params['w']= params['xi']*log((params['T_vmax'] - 4)/(params['T_vmax'] - 2))/log((2-params['T_vmin'])/(4-params['T_vmin']))
+  params['k']= log(1/((2-params['T_vmin'])^params['w']*(params['T_vmax']-2)^params['xi']))
+  return(params)
+}
+
+
+obj_fun_FT_vs_GA = function(l10_FT_vs_GA,plant){
+  plant$update_params(c(FT_vs_GA = 10^(l10_FT_vs_GA)))
+  DTT = plant$get_predicted_transition_day()
+  # print(c(FT_vs_GA,DTB,plant$get_FT_signal()[DTB],plant$get_GA_signal()[DTB]))
+  res = abs(10^(l10_FT_vs_GA)*plant$get_FT_signal()[DTT] - plant$get_GA_signal()[DTT])
+  if(is.na(res)) res = 1e6
+  return(res)
+}
+
+find_FT_vs_GA = function(params) {
+
+  dayl = params[['Dayl_FT_equal_GA']]
+  Temp = 20
+
+  # build an environ of this dayl
+  env = data.frame(Year = 0, Date = 0, Hour.in.Day = 1:24,Hrs.light = 0,Daylength = dayl, Grnd.Tmp = Temp, PAR = 0)
+  env$Hrs.light[env$Hour.in.Day >= (24-dayl+1)] = 1
+  env$Hrs.light[ceiling(24-dayl)] = dayl %% 1
+  e = new(Environ,as.list(env))
+  for(i in 1:99) e$repeat_last_day()
+  env = as.data.frame(e$make_env_list())
+
+  # now construct a new simulation around this. Use existing parameters if possible
+  if('Plant_list' %in% ls(.GlobalEnv) && length(Plant_list) > 0) {
+    plant_id = grep('Col',names(Plant_list))[1]
+    plant = new(New_Plant,'id','genotype','environ',Plant_list[[plant_id]]$get_params(),as.list(env))
+    plant$update_params(params)
+  } else{
+    new_params = base_params
+    new_params[names(params)] = params
+    plant = new(New_Plant,'id','genotype','environ',new_params,as.list(env))
+  }
+  # recover()
+  res = optimize(obj_fun_FT_vs_GA,c(-5,0),plant = plant)
+  # res = optimize(obj_fun_FT_vs_GA,c(-1.875,-1.87),plant = plant)
+  #
+  # ls = seq(-1.875,-1.87,length=1000)
+  # ls = seq(-5,0,length=1000)
+  # res = sapply(ls,function(x) obj_fun_FT_vs_GA(x,plant))
+  # plot(ls,log(res))
+
+  return(10^res$minimum)
+}
