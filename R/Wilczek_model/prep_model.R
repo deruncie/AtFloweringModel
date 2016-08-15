@@ -1,12 +1,5 @@
 library(AtFloweringModel)
 
-source('loadData.R')
-
-genotypes = c('Col','Col FRI','vin 3-1', 'fve-3','gi-2')#,'vin3-4 FRI','tfl2-6')
-plantings = fit_plantings[c(1:8,9:10,11:21)]
-plants = unlist(c(sapply(genotypes,function(gen) paste(gen,plantings,sep='::'))))
-fit_data_individuals = full_data_individuals[full_data_individuals$plant %in% plants,]
-
 parameter_matrix_file = 'Genotype_parameter_matrix_Wilczek_init.csv'
 genotype_parameter_values = 'Genotype_parameter_values_Wilczek_init.csv'
 
@@ -30,6 +23,9 @@ param_transformations = function(params){
   log_pars = names(params)[substr(names(params),1,5) == 'log10']
   for(p in log_pars){
     params[sub('log10_','',p)] = 10^params[p]
+  }
+  if(!is.na(params['FRI::F_b'])){
+    params['fve::F_b'] = params['FRI::F_b']
   }
   if('T_vmax' %in% names(params)){
     for(p in c('T_vmin','k','xi','w')){
@@ -94,7 +90,7 @@ for(genotype in genotypes){
     # plant$get_predicted_bolting_day()
     # plant$add_bolting_days(wilczek_results$Mean_DTB[index])
     # plant$get_observed_bolting_PTTs()
-    new_plant_index = data.frame(Plant = id, Genotype = genotype, Treatment = env)
+    new_plant_index = data.frame(Plant = id, Genotype = genotype, Treatment = env,fit_data_individuals[index,][1,c('Temp','Dayl','Vern_length','Background')])
     # new_plant_index$pred_DTB = plant$get_predicted_bolting_day()
 
     # # plant$add_bolting_days(wilczek_results$Mean_DTB[index])
@@ -107,10 +103,6 @@ for(genotype in genotypes){
     Plant_list[[id]] = plant
   }
 }
-
-Validation_Plant_list = Plant_list[plant_index$Treatment %in% fit_plantings[11:21]]
-Plant_list = Plant_list[plant_index$Treatment %in% fit_plantings[1:10]]
-
 
 # plant$get_params()
 #

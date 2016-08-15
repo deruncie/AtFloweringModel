@@ -1,0 +1,65 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+```{r}
+# note: for Thingnaes elongation studies, temperature treatments were begun at observed bolting. 
+# for DTB studies, days count after transfer from 22C 10h on day 14 to temperature treatments
+
+data = read.csv('~/Box Sync/DER_projects/Leaves_vs_flowers/Thignaes/Stem_elongation/Thingnaes_stem_elongation.csv')
+summary(data)
+data$Trt = paste(data$DayT,data$NightT,sep='_')
+
+# these rates are highly correlated with the reported rates in Table 3. 
+rates = do.call(rbind,tapply(1:nrow(data),data$Trt,function(x) {
+  sub_data = data[x,]
+  lm1 = nls(Length ~ SSlogis(Day,Asym,xmin,scale),sub_data)
+  rate_at_xmin = coef(lm1)['Asym'] / (4*coef(lm1)['scale'])
+  time_to_bolt = coef(lm1)['xmin'] - coef(lm1)['scale'] * log((coef(lm1)['Asym']-30)/30) 
+  # with(sub_data,plot(Day -coef(lm1)['xmin'],Length)) 
+  # X = seq(0,20,length=100)
+  # lines(X -coef(lm1)['xmin'],predict(lm1,list(Day = X))) 
+  # abline(coef(lm1)['Asym'] / 2,rate)
+  # abline(h=30);abline(v=time_to_bolt-coef(lm1)['xmin'])
+  # predict(lm1,list(Day = time_to_bolt-coef(lm1)['xmin']))
+  return(data.frame(time = time_to_bolt,rate = 1/coef(lm1)['scale'],rate_at_xmin = rate_at_xmin))
+}))
+rates = data.frame(Trt = rownames(rates),rates)
+rates$DayT = as.numeric(substr(rates$Trt,1,2))
+rates$NightT = as.numeric(substr(rates$Trt,4,5))
+rates$MeanT = 0.5*(rates$DayT + rates$NightT)
+rates$Table3 = c(6,5.9,6.8,10,10.1,9.7,10.8,14.2,12.8,13,14.6,17.9,14.5,14.6,15.6,18.5) # from Table 3.
+cor(rates$rate,rates$Table3)
+
+lm2 = lm(rate ~ poly(DayT,2,raw = T) + NightT,rates)
+summary(lm2)
+op = par(mfrow=c(1,2))
+plot(lm2,which = c(1,2))
+par(op)
+temp = seq(0,30)
+plot(temp,predict(lm2,newdata = data.frame(DayT = temp,NightT = 22)))
+# with(rates,plot(MeanT,rate,col = NightT))
+ggplot(rates,aes(x=MeanT,y=rate)) + geom_point(aes(color=DayT - NightT))
+ggplot(rates,aes(x=DayT,y=rate)) + geom_line(aes(color=NightT,group = NightT))
+ggplot(rates,aes(x=NightT,y=rate)) + geom_line(aes(color=DayT,group = DayT))
+ggplot(rates,aes(x=MeanT,y=rate)) + geom_line(aes(color=NightT,group = NightT))
+
+lm3 = lm(rate ~ DayT + NightT,subset(rates,DayT < 27 & NightT < 27))
+summary(lm3)
+
+```
+## Conclustions: 
+The elongation rate is strongly related to day temperature, but only minimally related to night temperature, and only when temperatures are very high. This might implicate PIF4 (as in flowering time).
+
+The slope of the relationship between rate and DayT does predict a Tb well above zero. They do comment that the plants were acclimated to the warmer temperatures, so this may have contributed to more stress with the transfer.
+
+```{r}
+data = read.csv('~/Box Sync/DER_projects/Leaves_vs_flowers/Thignaes/Stem_elongation/Thingnaes_DTB_RLN.csv')
+data$MeanT = 0.5*(data$DayT + data$NightT)
+ggplot(data,aes(x=RLN,y=DTB)) + geom_point(aes(color = MeanT))
+ggplot(data,aes(x=DayT,y=DTB)) + geom_line(aes(color=NightT,group = NightT))
+ggplot(data,aes(x=NightT,y=DTB)) + geom_line(aes(color=DayT,group = DayT))
+ggplot(data,aes(x=DayT,y=RLN)) + geom_line(aes(color=NightT,group = NightT))
+ggplot(data,aes(x=NightT,y=RLN)) + geom_line(aes(color=DayT,group = DayT))
+```
+

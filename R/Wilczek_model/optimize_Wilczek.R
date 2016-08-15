@@ -1,15 +1,24 @@
 library(AtFloweringModel)
 library(ggplot2)
+source('loadData.R')
+
+genotypes = c('Col','Col FRI','vin 3-1', 'fve-3')#,'tfl2-6') #,'gi-2','vin3-4 FRI'
+plantings = fit_plantings[c(1:8,9:10,11:21)]
+plants = unlist(c(sapply(genotypes,function(gen) paste(gen,plantings,sep='::'))))
+fit_data_individuals = full_data_individuals[full_data_individuals$plant %in% plants,]
+
 source('prep_model.R')
 
 
 base_coefs = c(base_params,init_coefs_genotypes)
 
-init = base_coefs[c('D_SD','Col::F_b','FRI::F_b','fve::F_b','log10_Signal_threshold')]
+# init = base_coefs[c('D_SD','Col::F_b','FRI::F_b','fve::F_b','log10_Signal_threshold')]
+init = base_coefs[c('D_SD','Col::F_b','FRI::F_b','log10_Signal_threshold','Tmin')]
+#
+# for(i in 1:length(init)) init[i] = runif(1,0,1)
+# init['log10_Signal_threshold'] = rnorm(1,3,1)
 
-for(i in 1:length(init)) init[i] = runif(1,0,1)
-init['log10_Signal_threshold'] = rnorm(1,3,1)
-
+coef_mat = c()
 res = optim(init,obj_fun,control = list(trace=9))
 res = optim(res$par,obj_fun,control = list(trace=9));res
 obj_fun(res$par,Plant_list)

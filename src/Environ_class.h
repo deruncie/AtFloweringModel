@@ -23,8 +23,9 @@ public:
 
 class Environ {
 public:
-  Environ() {}
+  Environ(): maxDays(365) {}
   Environ(List);
+  int maxDays;
   int numDays() {return Days.size();}
   double get_Daylength(int);
   NumericVector get_GrndTmp_Day(int);

@@ -1,0 +1,89 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+data = read.delim('~/Box Sync//DER_projects/Leaves_vs_flowers/Pouteau/Pouteau_1996.txt')
+data$TLN = with(data,RLN+CLN)
+
+ggplot(data,aes(x=TLN,y=DTB)) + geom_point(aes(color=Type))
+
+```
+
+```{r}
+data = read.csv('~/Box Sync/DER_projects/Leaves_vs_flowers/Pouteau/Pouteau_transfers_09.csv')
+data
+# ggplot(data,aes(x=Day,y=TLN)) + geom_point(aes(color=Trt))
+lm1 = lm(TLN-2~0+Day+I(Day^2),subset(data,Trt=='light' & Day < 27))
+lm2 = lm(TLN-2~0+Day,subset(data,Trt=='light' & Day < 27))
+lm3 = lm(TLN-2~0+I(Day^2),subset(data,Trt=='light' & Day < 27))
+summary(lm1)
+x = seq(0,30,length=10)
+with(subset(data,Trt=='light'),plot(Day,TLN,xlim = c(0,30),ylim = c(0,40)))
+lines(x,2+predict(lm1,newdata=data.frame(Day=x)))
+lines(x,2+predict(lm2,newdata=data.frame(Day=x)),col=2)
+lines(x,2+predict(lm3,newdata=data.frame(Day=x)),col=3)
+```
+
+```{r}
+sub_data = subset(data,Trt=='light' & Day < 27)
+sub_data$Size = 10*(20-3)*sub_data$Day
+sub_data$pred_bolt = with(sub_data,Size*(DTB-Day))
+# with(sub_data,plot(Day,pred_bolt))
+sub_data$bolt_rate = with(sub_data,1/(DTB - Day))
+ggplot(sub_data,aes(x=(Day),y=(DTB - Day))) + geom_point()# + expand_limits(y=0)
+# lm1 = lm(DTB - Day ~ Day,sub_data)
+# summary(lm1)
+# abline(lm1)
+```
+
+```{r}
+stem = read.csv('~/Box Sync/DER_projects/Leaves_vs_flowers/Pouteau/Pouteau_stem_elongation_11.csv')
+stem
+with(stem,plot(Photoperiod,Extension_rate))
+lm1 = lm(Extension_rate~Photoperiod,stem)
+abline(lm1)
+summary(lm1)
+lm2 = lm(Extension_rate~Photoperiod,subset(stem,Photoperiod < 24))
+abline(lm2,col=2)
+summary(lm2)
+
+```
+
+With this, there is a confound that flowering time is much later for shorter photoperiods. This means that plants are larger. Trying to model this:
+
+```{r}
+size_data = subset(read.delim('~/Box Sync//DER_projects/Leaves_vs_flowers/Pouteau/Pouteau_1996.txt'),Type == 'stPhP')
+size_data$TLN = with(size_data,RLN+CLN)
+
+stem = read.csv('~/Box Sync/DER_projects/Leaves_vs_flowers/Pouteau/Pouteau_stem_elongation_11.csv')
+stem
+data = merge(size_data,stem)
+data = subset(data,Photoperiod < 24)
+a = 0.5
+b = 0.04
+data$DTT = with(data,sqrt(TLN/b - a/(4*b^2)) - a/(2*b)) # transition day based on TLN from above calculations
+with(data,plot(DTT,TLN))
+data$Size = with(data,Photoperiod*(DTT))
+with(data,plot(Photoperiod,Size))
+data$Photosyn = with(data,Size*Photoperiod)
+with(data,plot(Photoperiod,Photosyn))
+summary(lm(Extension_rate~Photosyn+Photoperiod,subset(data,Photoperiod< 24)))
+with(data,plot(TLN,Extension_rate))
+with(data,plot(Size,Extension_rate))
+with(subset(data,Photoperiod< 24),cor(Photosyn,Extension_rate))
+with(subset(data,Photoperiod< 24),cor(Photoperiod,Extension_rate))
+with(data,plot(Photosyn,Extension_rate,ylim = c(0,5),xlim = c(0,max(Photosyn))))
+lm_photosyn = lm(Extension_rate~Photosyn,subset(data,Photoperiod< 24))
+abline(lm_photosyn)
+with(data,plot(Photoperiod,Extension_rate,ylim = c(0,5),xlim = c(0,24)))
+lm_photoper = lm(Extension_rate~Photoperiod,subset(data,Photoperiod< 24))
+abline(lm_photoper)
+summary(lm_photosyn)
+summary(lm_photoper)
+# with(data,plot(TLN,Photoperiod))
+ 
+
+```
+

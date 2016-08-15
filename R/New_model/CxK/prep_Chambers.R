@@ -1,7 +1,21 @@
 library(AtFloweringModel)
 
-parameter_matrix_file = 'Genotype_parameter_matrix_New_init.csv'
-genotype_parameter_values = 'Genotype_parameter_values_New_init.csv'
+# impute genotypes for target genes:
+# using R/Qtl
+require(qtl)
+
+genotypes = as.character(unique(subset(full_data_individuals,Paper=='Alex_chamber')$Genotype))
+target_alleles = imputed_genotypes[genotypes,c('FRI','FLM-BsrI','MAF2KE','GA5')] #,'PIE1'
+colnames(target_alleles) = c('FRI','FLM','MAF2','GA5') #,'PIE1'
+
+GSPs = colnames(target_alleles)
+design_matrix_genotype_list = lapply(genotypes,function(gen) {
+  design_matrix = matrix(0,nr = length(GSPs),ncol = 2*length(GSPs))
+
+})
+
+parameter_matrix_file = 'Genotype_parameter_matrix_CxK_init.csv'
+genotype_parameter_values = 'Genotype_parameter_values_CxK_init.csv'
 
 design_matrix_genotype_list = Build.design_matrix_genotype_list(parameter_matrix_file,genotypes)
 param_range_list = Build.param_ranges(parameter_matrix_file)
@@ -21,18 +35,24 @@ param_transformations = function(params){
   for(p in log_pars){
     params[sub('log10_','',p)] = 10^params[p]
   }
-  if(!is.na(params['FRI::F_b'])){
-    params['fve::F_b'] = params['FRI::F_b']
+  if(!is.na(params['FRI'])){
+    params['F_n'] = 1-params['FRI']
   }
-  if(!is.na(params['TLN_SD'])){
+  if(!is.na(params['FLM']) | !is.na(params['MAF2']) | !is.na(params['SVP'])){
+    params['HT_base'] = 1 - params['SVP']  - params['FLM'] - params['MAF2']
+  }
+  if(!is.na(params['GA5'])){
+    params['GA_strength'] = params['GA5']
+  }
+  if(!is.na(params['TLN_SD']) & is.na(params['Signal_threshold'])){
     # set threshold based on GA signal in SDs at 20C
     params['Signal_threshold'] = 8*17*params['TLN_SD']
   }
-  if(!is.na(params['Dayl_FT_equal_GA'])) {
+  if(!is.na(params['Dayl_FT_equal_GA']) & is.na(params['FT_vs_GA'])) {
     # set FT_vs_GA based on the daylength when the FT and GA signals are equal at the transition
     # print('find Dayl')
     params['FT_vs_GA'] = find_FT_vs_GA(params)
-    params = params[names(params) != 'Dayl_FT_equal_GA']
+    # params = params[names(params) != 'Dayl_FT_equal_GA']
   }
   if(!is.na(params['D_TtB'])){
     # set based on size of a plant that developed for 12 days in 10h at 20C (Pouteau et al 2009)

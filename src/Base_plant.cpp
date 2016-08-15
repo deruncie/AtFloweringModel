@@ -79,7 +79,7 @@ double Base_Plant::Signal_fun(double repression, double dayl){
 void Base_Plant::develop_n(int n_days){
   for(int i = 0; i < n_days; i++){
     develop_day();
-    if(age >= env.numDays()) continue;
+    if(age >= env.maxDays) continue;
   }
 }
 
@@ -103,10 +103,10 @@ int Base_Plant::predict_bolting(){
 
   // check_plant();
 
-  while(age < env.numDays() && developmental_state < 2) develop_day();
+  while(age < env.maxDays && developmental_state < 2) develop_day();
   if(developmental_state == 2) return bolting_day;
   // if no bolting by end of env:
-  return env.numDays()+1;
+  return env.maxDays;
 }
 
 double Base_Plant::get_predicted_bolting_PTT(){

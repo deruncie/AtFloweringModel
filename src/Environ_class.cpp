@@ -15,7 +15,7 @@ void Night::add_hour(double temp, double dt, int hr) {
   HourInDay.push_back(hr);
 }
 
-Environ::Environ(List env){
+Environ::Environ(List env): maxDays(365){
   NumericVector Year = clone(as<NumericVector>(env["Year"]));
   NumericVector DOY = clone(as<NumericVector>(env["Date"]));
   NumericVector HourInDay = clone(as<NumericVector>(env["Hour.in.Day"]));

@@ -8,7 +8,46 @@
 #
 library(ggplot2)
 source('plotting_functions.R')
+source('loadData.R')
+
+# # select plants
+genotypes = c('Col','Col FRI','vin 3-1', 'fve-3')#,'tfl2-6') ,'gi-2','vin3-4 FRI'
+# genotypes = c('Col','Col FRI','gi-2','vin3-4 FRI','vin 3-1')#,'tfl2-6')
+# select plantings
+# plantings = fit_plantings[c(1:8,9:10,11:21)]
+plantings = fit_plantings[c(grep('ACE2',fit_plantings),grep('FIBR',fit_plantings))] #,grep('Vern',fit_plantings) #,grep('FIBR',fit_plantings)
+plantings = plantings[!grepl('D_V',plantings)]
+# plantings = fit_plantings[grep('Vern',fit_plantings)] #,
+
+
+plants = unlist(c(sapply(genotypes,function(gen) paste(gen,plantings,sep='::'))))
+fit_data_individuals = full_data_individuals[full_data_individuals$plant %in% plants,]
+
+training_plants = plants[grep('FIBR',plants)]
+validation_plants = plants[plants %in% training_plants == F]
+
+
+# # # divide between optimization and validation
+# # Validation_Plant_list = Plant_list[plant_index$Treatment %in% fit_plantings[11:21]]
+# # Plant_list = Plant_list[plant_index$Treatment %in% fit_plantings[1:10]]
+# 
+# # divide between optimization and validation
+# # Validation_Plant_list = Plant_list[grep('Con',plant_index$Treatment)]
+# # Validation_Plant_list = Plant_list[grep('FIBR',plant_index$Treatment)]
+# Validation_Plant_list = Plant_list[grep('ACE2',plant_index$Treatment)]
+# # Validation_Plant_list = Plant_list[grep('RI',plant_index$Treatment)]
+# # Plant_list = Plant_list[grep('Vern',plant_index$Treatment)]
+# Plant_list = Plant_list[names(Plant_list) %in% names(Validation_Plant_list) == F]
+
 source('prep_model.R',chdir=T)
+
+training_plants = training_plants[training_plants %in% names(Plant_list)]
+validation_plants = validation_plants[validation_plants %in% names(Plant_list)]
+
+Validation_Plant_list = Plant_list[validation_plants]
+Plant_list = Plant_list[training_plants]
+
+
 current_model = 'Wilczek'
 
 slider_functions = list(
@@ -17,7 +56,8 @@ slider_functions = list(
   DO_recover = c(FALSE,TRUE)
 )
 
-generic_params = c('T_base','D_SD','CSDL','CLDL','Pnight','T_vmax')
+# generic_params = c('T_base','D_SD','CSDL','CLDL','Pnight','T_vmax')
+generic_params = c('Tmin','D_SD','CSDL','CLDL','Pnight','T_vmax')
 switches = c()
 
 slider_generic_params = lapply(generic_params,function(param) param_range_list[[param]][c(3,1,2)])
@@ -34,8 +74,10 @@ names(slider_genotype_params) = sub('::','_',genotype_coefs)
 
 slider_plants = list(
   Genotype = c(genotypes,'All'),
-  Environment = c('All',fit_plantings),
-  Color_by = c('Genotype','Environment')
+  Genotype2 = c(genotypes),
+  Treatment = c('All',plantings),
+  Color_by = c('Genotype','Treatment','Dayl','Temp','Vern_length'),
+  Stat = c('PTB','DTB')
 )
 
 slider_params = list(slider_generic_params = slider_generic_params,

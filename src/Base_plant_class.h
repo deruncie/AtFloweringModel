@@ -22,6 +22,7 @@ public:
   int get_predicted_bolting_day();
   int get_predicted_transition_day();
   double get_predicted_bolting_PTT();
+  IntegerVector get_observed_bolting_days() {return observed_bolting_days;}
   NumericVector get_observed_bolting_PTTs();
   NumericVector get_size() {return wrap(cumPTT);}
   NumericVector get_Vern() {return wrap(Vern);}

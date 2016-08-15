@@ -3,7 +3,7 @@
 Build.design_matrix_genotype_list = function(file,genotypes){
   if(!class(genotypes) == 'character') stop('genotypes must be a character vector (i.e. not factor')
   genotype_parameters = read.csv(file,h=T,check.names=F,stringsAsFactors=F,row.names=1)[,-c(1:3)]
-  if(!all(genotypes %in% colnames(genotype_parameters))) stop('genotypes missing from parameter file')
+  if(!all(genotypes %in% colnames(genotype_parameters))) stop(sprintf('%s missing from parameter file',paste(genotypes[genotypes %in% colnames(genotype_parameters) == F],collapse=', ')))
   genotype_parameters = genotype_parameters[,genotypes]
 
   # genotype_parameters = genotype_parameters[which(apply(genotype_parameters,1,function(x) length(unique(x))>1)),]
@@ -29,7 +29,7 @@ Build.param_ranges = function(file){
   data = param_ranges[i,]
   if(all(!is.na(as.numeric(data)))) {
     data = as.numeric(data)
-    data[2] = data[2] + 0.1
+    data[2] = data[2]
   }
   data
   })
@@ -111,7 +111,6 @@ Update_coefs_genotype = function(
   # for the generic ones, check that the ranges are OK. If some are out of the valid range, set penalty > 0
 
   # constant parameters
-  # recover()
   genotype_specific_coefs = new_coefs[names(new_coefs) %in% colnames(design_matrix_genotype)]
   design_matrix_genotype = design_matrix_genotype[,names(genotype_specific_coefs),drop=F]
   design_matrix_genotype = design_matrix_genotype[rowSums(abs(design_matrix_genotype))>0,,drop=F]
@@ -121,12 +120,13 @@ Update_coefs_genotype = function(
 
   new_params = c(const_params,genotype_specific_params)
 
-
   if(length(new_params) > 0){
     new_params_to_check = new_params[names(new_params) %in% rownames(param_ranges)]
-    result = Fix_param_ranges(new_params = unlist(new_params_to_check), matrix(param_ranges[names(new_params_to_check),],nr=length(new_params_to_check)))
-    new_params[names(result$new_params)] = result$new_params
-    penalty = penalty + sum(result$penalty)
+    if(length(new_params_to_check) > 0) {
+      result = Fix_param_ranges(new_params = unlist(new_params_to_check), matrix(param_ranges[names(new_params_to_check),],nr=length(new_params_to_check)))
+      new_params[names(result$new_params)] = result$new_params
+      penalty = penalty + sum(result$penalty)
+    }
     # new_params = sapply(names(new_params),function(param) param_transformation[[param]](new_params[[param]]))
   }
 
@@ -146,10 +146,11 @@ weighted_CV = function(obs,pred,N){
   sqrt(sum((obs - pred)^2*N)/sum(obs^2*N))
 }
 
-obj_fun = function(new_coefs){
+obj_fun = function(new_coefs,plants = NULL){
+  if(is.null(plants)) plants = Plant_list
   new_coefs = param_transformations(new_coefs)
   # print(new_coefs)
-  r = do.call(rbind,lapply(Plant_list,function(plant) {
+  r = do.call(rbind,lapply(plants,function(plant) {
     plant$update_coefs(new_coefs)
     pred = plant$get_predicted_bolting_PTT()
     obs = plant$get_observed_bolting_PTTs()
@@ -162,6 +163,7 @@ obj_fun = function(new_coefs){
   if(is.na(out)) recover()
   if(out == Inf) recover()
   # print(c(out,new_coefs))
+  # coef_mat <<- rbind(coef_mat,c(new_coefs,out))
   return(out)
 }
 

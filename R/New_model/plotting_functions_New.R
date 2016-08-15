@@ -21,6 +21,15 @@ plot_env_responses = function(plant,cex_main=1,...){
   plot(Daylength,sapply(Daylength,function(dayl) plant$Signal_fun(dayl,1)),type='l',
        main = 'Phot',
        cex.lab = cex_main,cex.main = cex_main,...)
+
+
+  # plot 4: Photoperiod_effect vs Daylength
+  Temps = seq(-3,35,length=50)
+  plot(Temps,sapply(Temps,function(temp) plant$HighTemp_fun(temp,1)),type='l',
+       main = 'HighTemp activation',ylim = c(0,1),
+       cex.lab = cex_main,cex.main = cex_main,...)
+
+
   # plot 4: vern timecourse
   plot(plant$get_Vern(),type='l',
        main = 'Vern timecourse',
@@ -35,6 +44,7 @@ plot_env_responses = function(plant,cex_main=1,...){
   plot(plant$get_GA_signal(),type='l',
        main = 'GA timecourse',
        cex.lab = cex_main,cex.main = cex_main,...)
+
 #
 #   # plot 4: Photoperiod_effect vs Daylength
 #   Daylength = seq(8,20,length=50)

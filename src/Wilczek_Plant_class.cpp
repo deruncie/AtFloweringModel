@@ -6,7 +6,8 @@ using namespace Rcpp;
 class Wilczek_Plant : public Base_Plant {
 public:
   Wilczek_Plant(String id_, String gen_, String environ_,NumericVector params_, List env_): Base_Plant(id_,gen_,environ_,params_,env_) {
-    TT_params = {"T_base"};
+    // TT_params = {"T_base"};
+    TT_params = {"Tmin","T10","Topt","Tmax"};
     PTT_params = {"Pnight","Pday"};
     Vern_params = {"F_b","Vsat","k","w","xi","T_vmin","T_vmax"};
     FT_params = {"D_LD","CSDL","CLDL"};
@@ -24,9 +25,37 @@ protected:
   void check_plant();
 };
 
+// double Wilczek_Plant::TT_fun(NumericVector temps, NumericVector dts){
+//   return sum(pmax(temps-params["T_base"],0) * dts);
+// }
+
 double Wilczek_Plant::TT_fun(NumericVector temps, NumericVector dts){
-  return sum(pmax(temps-params["T_base"],0) * dts);
+  double Tmin = params["Tmin"];
+  double T10 =  params["T10"];
+  double Topt = params["Topt"];
+  double Tmax = params["Tmax"];
+  double T_20 = T10 + (20-10)/(Topt-10) * (1-T10);
+
+  double TT = 0;
+  for(int i = 0; i < temps.length(); i++) {
+    double t = temps[i];
+    if(t < Tmin) continue;
+    if(t < 10) {
+      TT += (t-Tmin)/(10-Tmin) * T10 * dts[i];
+      continue;
+    }
+    if(t < Topt){
+      TT += (T10 + (t-10)/(Topt-10) * (1-T10)) * dts[i];
+      continue;
+    }
+    if( t < Tmax) {
+      TT += (1 - (t - Topt) / (Tmax - Topt)) * dts[i];
+      continue;
+    }
+  }
+  return TT/T_20 * (20-3);  // re-scale TTs so that they are similar to Wilczek_TT (T_base = 3)
 }
+
 double Wilczek_Plant::PTT_fun(double sumTT_night, double sumTT_day){
   return params["Pnight"]*sumTT_night + params["Pday"]*sumTT_day;
 }
@@ -80,7 +109,8 @@ void Wilczek_Plant::check_plant() {
 
 void Wilczek_Plant::develop_day(){
   check_plant();
-  if(age >= env.numDays()) return;
+  if(age == env.numDays()) env.repeat_last_day();
+  if(age >= env.maxDays) return;
   age++;
   // always 1st night, then day.
   // calc TT for day
@@ -220,6 +250,7 @@ RCPP_MODULE(class_Wilczek_Plant) {
      .method("get_predicted_transition_day",&Base_Plant::get_predicted_transition_day)
      .method("update_Signal_threshold",&Base_Plant::update_Signal_threshold)
      .method("get_predicted_bolting_PTT",&Base_Plant::get_predicted_bolting_PTT)
+     .method("get_observed_bolting_days",&Base_Plant::get_observed_bolting_days)
      .method("get_observed_bolting_PTTs",&Base_Plant::get_observed_bolting_PTTs)
      .method("get_developmental_state",&Base_Plant::get_developmental_state)
      .method("Vern_fun",& Base_Plant::Vern_fun)
