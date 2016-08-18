@@ -149,11 +149,13 @@ server <- function(input, output) {
     names(new_coefs)[match(names(slider_genotype_params),names(new_coefs))] = genotype_coefs
     # new_coefs[is.na(new_coefs)] = 0
 
-    new_coefs = param_transformations(new_coefs)
+    # new_coefs = param_transformations(new_coefs)
     print(new_coefs)
     print('')
     # update coefs per plant
     res = sapply(Plant_list,function(plant) plant$update_coefs(new_coefs))
+    print(Plant_list[[1]]$get_params())
+    print('done')
 
     if(input$Optimize_threshold){
       print('optimizing')
@@ -178,7 +180,7 @@ server <- function(input, output) {
 
     # update coefs per plant
     new_coefs['log10_Signal_threshold'] = Plant_list[[1]]$get_params()['log10_Signal_threshold']
-    new_coefs = param_transformations(new_coefs)
+    # new_coefs = param_transformations(new_coefs)
     print(new_coefs)
     res = sapply(Validation_Plant_list,function(plant) plant$update_coefs(new_coefs))
 
@@ -204,9 +206,10 @@ server <- function(input, output) {
 
     new_coefs = sapply(c(names(slider_generic_params),names(slider_switches),names(slider_genotype_params)),function(param) input[[param]])
     names(new_coefs)[match(names(slider_genotype_params),names(new_coefs))] = genotype_coefs
-    new_coefs = param_transformations(new_coefs)
     if(plant_id %in% names(Plant_list)) plant = Plant_list[[paste(gen,env,sep='::')]]
     if(plant_id %in% names(Validation_Plant_list)) plant = Validation_Plant_list[[paste(gen,env,sep='::')]]
+    # old_coefs = plant$get_params()
+    # new_coefs = param_transformations(new_coefs,old_coefs)
     plant$update_coefs(new_coefs)
 
     plot_env_responses(plant,cex_main = cex_main())
@@ -287,6 +290,8 @@ server <- function(input, output) {
     if(input$Color_by == 'Dayl') res$ColorBy = c('SD','LD')[(grepl('LD',res$Treatment)+1)]
     if(input$Color_by == 'Temp') res$ColorBy = c('12','22')[(grepl('22',res$Treatment)+1)]
     if(input$Color_by == 'Vern_length') res$ColorBy = c('NV','V')[(grepl('_V',res$Treatment)+1)]
+    if(input$Color_by == 'TRT_class') res$ColorBy = sapply(as.character(res$Treatment),function(x) strsplit(x,'_')[[1]][1])
+    if(input$Color_by %in% colnames(target_alleles)) res$ColorBy = target_alleles[res$Genotype,input$Color_by]
     ggplot(res,aes(x=TLN,y=DTB)) + geom_point(aes(color = ColorBy)) + facet_grid(~Type)
   })
   output$plot_DTB_vs_TLN.ui = renderUI({
@@ -374,7 +379,7 @@ server <- function(input, output) {
   output$plot_training_dots = renderPlot({
     current_plant_states_reactive()
 
-    results = do.call(rbind,lapply(Plant_list,function(plant) {
+    results = do.call(rbind,mclapply(Plant_list,function(plant) {
       # plant$update_coefs(res$par)
       if(input$Stat == 'PTB') {
         pred = plant$get_predicted_bolting_PTT()
@@ -385,9 +390,12 @@ server <- function(input, output) {
         obs = plant$get_observed_bolting_days()
       }
       return(data.frame(Genotype = plant$gen, Treatment = plant$environ,pred = pred,obs = mean(obs),sd = sd(obs),N = length(obs),subset(plant_index,Plant == plant$id)))
-    }))
+    },mc.cores = NCORES))
 
-    results$ColorBy = as.factor(results[[input$Color_by]])
+    if(input$Color_by %in% c('Genotype','Treatment')) results$ColorBy = as.factor(results[[input$Color_by]])
+    if(input$Color_by == 'TRT_class') results$ColorBy = sapply(as.character(results$Treatment),function(x) strsplit(x,'_')[[1]][1])
+    if(input$Color_by %in% colnames(target_alleles)) results$ColorBy = c('Kas','Het','Col')[target_alleles[results$Genotype,input$Color_by]]
+    if(input$Color_by == 'KCK') results$ColorBy = apply(matrix(c('K','H','C')[target_alleles[results$Genotype,1:3]],nc=3),1,function(x) paste(x,collapse=''))
     ggplot(results,aes(x=obs,y=pred)) + geom_point(aes(color=ColorBy,size=N)) + geom_abline(intercept = 0,slope=1) + scale_size_area() + ggtitle(obj_fun(c(X=0)))
     # # observed vs predicted plot
     # if(input$Color_by == 'Genotype') {
@@ -404,7 +412,7 @@ server <- function(input, output) {
 
   output$plot_validation_dots = renderPlot({
     validation_plant_states_reactive()
-    results = do.call(rbind,lapply(Validation_Plant_list,function(plant) {
+    results = do.call(rbind,mclapply(Validation_Plant_list,function(plant) {
       if(input$Stat == 'PTB') {
         pred = plant$get_predicted_bolting_PTT()
         obs = plant$get_observed_bolting_PTTs()
@@ -414,10 +422,13 @@ server <- function(input, output) {
         obs = plant$get_observed_bolting_days()
       }
       return(data.frame(Genotype = plant$gen, Treatment = plant$environ,pred = pred,obs = mean(obs),sd = sd(obs),N = length(obs),subset(plant_index,Plant == plant$id)))
-    }))
+    },mc.cores = NCORES))
 
-    results$ColorBy = as.factor(results[[input$Color_by]])
+    if(input$Color_by %in% c('Genotype','Treatment')) results$ColorBy = as.factor(results[[input$Color_by]])
     if(is.null(results$ColorBy[1])) results$ColorBy = results$Treatment
+    if(input$Color_by == 'TRT_class') results$ColorBy = sapply(as.character(results$Treatment),function(x) strsplit(x,'_')[[1]][1])
+    if(input$Color_by %in% colnames(target_alleles)) results$ColorBy = c('Kas','Het','Col')[target_alleles[results$Genotype,input$Color_by]]
+    if(input$Color_by == 'KCK') results$ColorBy = apply(matrix(c('K','H','C')[target_alleles[results$Genotype,1:3]],nc=3),1,function(x) paste(x,collapse=''))
     ggplot(results,aes(x=obs,y=pred)) + geom_point(aes(color=ColorBy,size=N)) + geom_abline(intercept = 0,slope=1) + scale_size_area() + ggtitle(obj_fun(c(X=0),plants = Validation_Plant_list))
     # # observed vs predicted plot
     # if(input$Color_by == 'Genotype') {

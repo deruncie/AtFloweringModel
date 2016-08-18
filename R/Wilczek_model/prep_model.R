@@ -19,7 +19,7 @@ init_coefs_genotypes = read.csv(genotype_parameter_values,h=T,check.names=F,stri
 init_coefs_genotypes = init_coefs_genotypes[genotype_coefs,]
 names(init_coefs_genotypes) = genotype_coefs
 
-param_transformations = function(params){
+param_transformations = function(params,old_params = c()){
   log_pars = names(params)[substr(names(params),1,5) == 'log10']
   for(p in log_pars){
     params[sub('log10_','',p)] = 10^params[p]

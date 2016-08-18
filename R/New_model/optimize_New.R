@@ -18,18 +18,23 @@ Plant_list = Plant_list[plant_index$Treatment %in% fit_plantings[1:10]]
 
 base_coefs = c(base_params,init_coefs_genotypes)
 
-init = base_coefs[c('Col::F_b','FRI::F_b','Dayl_FT_equal_GA','log10_Signal_threshold','Tmin')] #,'HT_base'
+# init = base_coefs[c('Col::F_b','FRI::F_b','Dayl_FT_equal_GA','log10_Signal_threshold','Tmin')] #,'HT_base'
 init = base_coefs[c('Col::F_b','FRI::F_b','log10_FT_vs_GA','log10_Signal_threshold','Tmin')]
 # init['log10_FT_vs_GA'] = log10(7.101957e-03 )
 init['log10_Signal_threshold'] = log10(10^3.499362 ) #/ init['HT_base']
 #
-for(i in 1:length(init)) init[i] = runif(1,0,1)
-init['log10_Signal_threshold'] = rnorm(1,7,3)
+# for(i in 1:length(init)) init[i] = runif(1,0,1)
+# init['log10_Signal_threshold'] = rnorm(1,7,3)
 # init['Dayl_FT_equal_GA'] = runif(1,8,20)
 
 coef_mat = c()
+new_coefs = c(Dayl_FT_equal_GA = 11)
+b=param_transformations(new_coefs)
+summary(unlist(mclapply(Plant_list,function(plant) plant$get_params()['FT_vs_GA'],mc.cores = 8)))
+summary(unlist(mclapply(Plant_list,function(plant) plant$get_params()['Dayl_FT_equal_GA'],mc.cores = 8)))
+b=mclapply(Plant_list,function(plant) plant$update_coefs(c(Dayl_FT_equal_GA = 15)),mc.cores = 8)
 res = optim(init,obj_fun,control = list(trace=9,maxit = 200))
-reres = optim(res$par,obj_fun,control = list(trace=9,maxit = 1000));res
+res = optim(res$par,obj_fun,control = list(trace=9,maxit = 1000));res
 obj_fun(res$par)
 
 inplant = Plant_list[['gi-2::FIBR_HalleFall']]

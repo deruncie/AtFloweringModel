@@ -1,11 +1,6 @@
-parameter,value
-Col::log10_Vsat,2.982271233
-vin3-1::log10_Vsat,1.00E+01
-vin3-4::log10_Vsat,3.50E+00
-Col::F_b,0.95
-FRI::F_b,0.3
-fve::F_b,0.3
-Col::log10_FT_LD_vs_SD,2
-gi::log10_FT_LD_vs_SD,0
-Col::HT_base,1
-flm::HT_base,1
+,Gene,Col,Kas
+FRI,FRI,0.6845041,0.9508607
+FLM,FLM,0,0
+MAF2,MAF2,0.780924,0
+GA5,GA5,1,0.7642351
+GA5_bolt,GA5,1,0.5546582

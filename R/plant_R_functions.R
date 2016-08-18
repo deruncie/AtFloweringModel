@@ -1,3 +1,5 @@
+NCORES = 8
+
 # specify how genotypes related to parameters.
 # There are the model parameters, and then the genotype-specific parameters, with particular mappings between them, so that genotypes can share particular parameters
 Build.design_matrix_genotype_list = function(file,genotypes){
@@ -119,7 +121,7 @@ Update_coefs_genotype = function(
   const_params = new_coefs[names(new_coefs) %in% colnames(design_matrix_genotype) == F]
 
   new_params = c(const_params,genotype_specific_params)
-
+  # if(new_params['FRI'] > 1) recover()
   if(length(new_params) > 0){
     new_params_to_check = new_params[names(new_params) %in% rownames(param_ranges)]
     if(length(new_params_to_check) > 0) {
@@ -131,9 +133,9 @@ Update_coefs_genotype = function(
   }
 
   # only return params that have changed
-  new_params = new_params[new_params != old_params[names(new_params)]]
+  new_params = new_params[new_params != old_params[names(new_params)] | names(new_params) %in% names(old_params) == F]
 
-  new_params = param_transformation(new_params)
+  new_params = param_transformation(new_params,old_params)
   # print(new_params)
   # if(sum(is.na(names(new_params)))) recover()
   # if(names(new_params)[1] == 'FT_vs_GA' && names(new_params)[2] == 'F_b') recover()
@@ -146,24 +148,32 @@ weighted_CV = function(obs,pred,N){
   sqrt(sum((obs - pred)^2*N)/sum(obs^2*N))
 }
 
-obj_fun = function(new_coefs,plants = NULL){
+obj_fun = function(new_coefs,plants = NULL,param_names = NULL){
+  count <<- count + 1
+
+  if(NCORES > 1) require(parallel)
+  if(is.null(names(new_coefs))) names(new_coefs) = param_names
   if(is.null(plants)) plants = Plant_list
-  new_coefs = param_transformations(new_coefs)
+  # new_coefs = param_transformations(new_coefs)
   # print(new_coefs)
-  r = do.call(rbind,lapply(plants,function(plant) {
+  r = do.call(rbind,mclapply(plants,function(plant) {
     plant$update_coefs(new_coefs)
     pred = plant$get_predicted_bolting_PTT()
     obs = plant$get_observed_bolting_PTTs()
-    return(data.frame(pred = pred,obs = mean(obs),sd = sd(obs),N = length(obs)))
-  }))
+    penalty = plant$get_penalty()
+    return(data.frame(pred = pred,obs = mean(obs),sd = sd(obs),N = length(obs),penalty=penalty))
+  },mc.cores = 8)) #
 
-  penalty = sum(sapply(Plant_list,function(plant) plant$get_penalty()))
+  penalty = sum(r$penalty)
+  # print(penalty)
+  # recover()
   # return(weighted_CV(r$obs,r$pred,r$N) + penalty)
   out = weighted_CV(1/r$obs,1/r$pred,r$N) + penalty
   if(is.na(out)) recover()
   if(out == Inf) recover()
   # print(c(out,new_coefs))
-  # coef_mat <<- rbind(coef_mat,c(new_coefs,out))
+  coef_mat <<- rbind(coef_mat,c(new_coefs,out))
+  print(sprintf('%d %f',count,out))
   return(out)
 }
 
@@ -218,17 +228,25 @@ find_FT_vs_GA = function(params) {
   env = as.data.frame(e$make_env_list())
 
   # now construct a new simulation around this. Use existing parameters if possible
-  if('Plant_list' %in% ls(.GlobalEnv) && length(Plant_list) > 0) {
+  if('Plant_list' %in% ls(.GlobalEnv) && length(Plant_list) > 0 && grepl('Col',names(Plant_list))) {
     plant_id = grep('Col',names(Plant_list))[1]
     plant = new(New_Plant,'id','genotype','environ',Plant_list[[plant_id]]$get_params(),as.list(env))
     plant$update_params(params)
   } else{
     new_params = base_params
+    params = Plant_list[[1]]$get_params()
     new_params[names(params)] = params
     plant = new(New_Plant,'id','genotype','environ',new_params,as.list(env))
   }
   # recover()
   res = optimize(obj_fun_FT_vs_GA,c(-5,0),plant = plant)
+  FT_vs_GA = 10^res$minimum
+
+  # assign all plants to the new Dayl_FT_equal_GA parameter so this isn't re-done
+  # recover()
+  lapply(Plant_list,function(plant) plant$update_params(c(Dayl_FT_equal_GA = dayl,FT_vs_GA = FT_vs_GA)))
+  if('Validation_Plant_list' %in% ls(.GlobalEnv)) lapply(Validation_Plant_list,function(plant) plant$update_params(c(Dayl_FT_equal_GA = dayl,FT_vs_GA = FT_vs_GA)))
+
   # res = optimize(obj_fun_FT_vs_GA,c(-1.875,-1.87),plant = plant)
   #
   # ls = seq(-1.875,-1.87,length=1000)
@@ -236,5 +254,5 @@ find_FT_vs_GA = function(params) {
   # res = sapply(ls,function(x) obj_fun_FT_vs_GA(x,plant))
   # plot(ls,log(res))
 
-  return(10^res$minimum)
+  return(FT_vs_GA)
 }

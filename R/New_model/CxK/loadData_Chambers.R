@@ -12,6 +12,7 @@ raw_genotype_file = '~/Box Sync/DER_projects/Leaves_vs_flowers/Reenas_data/Col K
 raw_map_file = '~/Box Sync/DER_projects/Leaves_vs_flowers/Reenas_data/Col Kas QTL expt data/Geno Position 165 markers cM, bp.xlsx'
 genotype_data = read.csv(raw_genotype_file,na = '-',check.names = F,stringsAsFactors = F)
 genotype_data$Line = toupper(genotype_data$Line)
+Lines = genotype_data$Line
 map_data = read.xls(raw_map_file,stringsAsFactors=F)[,1:5]
 
 # Key genes
@@ -28,7 +29,7 @@ map_data$Marker[map_data$Marker == 'FLM'] = 'FLM-BsrI'
 
 # make rotated geno_data (CSVsr)
 geno_data_r = data.frame(map_data[,c('Marker','Chr','cM.Pos')],t(genotype_data[,match(map_data$Marker,colnames(genotype_data))]))
-colnames(geno_data_r)[-c(1:3)] = genotype_data$Line
+colnames(geno_data_r)[-c(1:3)] = Lines
 colnames(geno_data_r)[2:3] = rep('',2)
 colnames(geno_data_r)[1] = 'Line'
 
@@ -44,6 +45,10 @@ add_gene = function(gene,chr,Pos){
 }
 geno_data_r = rbind(geno_data_r,add_gene('PIE1',3,4065042))
 geno_data_r = rbind(geno_data_r,add_gene('GA5',4,12990884))
+
+geno_data_r$CS3879 = 'B'
+geno_data_r$CS3880 = 'A'
+Lines = c(Lines,'CS3879','CS3880')
 extra_genotype_data = genotype_data[,colnames(genotype_data) %in% map_data$Marker == F]
 write.csv(geno_data_r,file='geno_data_r.csv',row.names=F,na = '-')
 
@@ -71,7 +76,7 @@ plantings = names(environ_data)
 
 # Full data, but not flm
 fit_plantings = c(plantings[grep('REF',plantings)],plantings[grep('PHO',plantings)],plantings[grep('VER',plantings)],plantings[grep('TEM',plantings)],plantings[grep('RI',plantings)])
-i = data$Paper %in% c('FIBR','Repeated_planting','Liana_ACE','Liana_VernLength_TBA','Amity_Science','Alex_chamber') & !is.na(data$DTB) & data$Treatment %in% fit_plantings #data$Genotype %in% genotypes &
+i = data$Paper %in% c('FIBR','Repeated_planting_RILs','Liana_ACE','Liana_VernLength_TBA','Amity_Science','Alex_chamber') & !is.na(data$DTB) & data$Treatment %in% fit_plantings #data$Genotype %in% genotypes &
 cols = match(fit_plantings,plantings)
 full_data_individuals = drop.levels(data[i,])
 full_data_individuals$plant = paste(full_data_individuals$Genotype,full_data_individuals$Treatment,sep='::')
@@ -80,5 +85,4 @@ full_data_individuals$Treatment = factor(full_data_individuals$Treatment)
 rm(data)
 
 environ_data = environ_data[fit_plantings]
-
 

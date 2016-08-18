@@ -16,7 +16,7 @@ init_coefs_genotypes = read.csv(genotype_parameter_values,h=T,check.names=F,stri
 init_coefs_genotypes = init_coefs_genotypes[genotype_coefs,]
 names(init_coefs_genotypes) = genotype_coefs
 
-param_transformations = function(params){
+param_transformations = function(params,old_params = c()){
   log_pars = names(params)[substr(names(params),1,5) == 'log10']
   for(p in log_pars){
     params[sub('log10_','',p)] = 10^params[p]
@@ -28,11 +28,11 @@ param_transformations = function(params){
     # set threshold based on GA signal in SDs at 20C
     params['Signal_threshold'] = 8*17*params['TLN_SD']
   }
-  if(!is.na(params['Dayl_FT_equal_GA'])) {
+  if(!is.na(params['Dayl_FT_equal_GA']) & is.na(params['FT_vs_GA'])) {
     # set FT_vs_GA based on the daylength when the FT and GA signals are equal at the transition
     # print('find Dayl')
     params['FT_vs_GA'] = find_FT_vs_GA(params)
-    params = params[names(params) != 'Dayl_FT_equal_GA']
+    # params = params[names(params) != 'Dayl_FT_equal_GA']
   }
   if(!is.na(params['D_TtB'])){
     # set based on size of a plant that developed for 12 days in 10h at 20C (Pouteau et al 2009)
